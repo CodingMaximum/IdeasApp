@@ -1468,15 +1468,15 @@ class $IdeaModulesTable extends IdeaModules
       'REFERENCES ideas (id)',
     ),
   );
-  static const VerificationMeta _typeMeta = const VerificationMeta('type');
   @override
-  late final GeneratedColumn<String> type = GeneratedColumn<String>(
-    'type',
-    aliasedName,
-    false,
-    type: DriftSqlType.string,
-    requiredDuringInsert: true,
-  );
+  late final GeneratedColumnWithTypeConverter<IdeaModuleType, String> type =
+      GeneratedColumn<String>(
+        'type',
+        aliasedName,
+        false,
+        type: DriftSqlType.string,
+        requiredDuringInsert: true,
+      ).withConverter<IdeaModuleType>($IdeaModulesTable.$convertertype);
   static const VerificationMeta _titleMeta = const VerificationMeta('title');
   @override
   late final GeneratedColumn<String> title = GeneratedColumn<String>(
@@ -1555,14 +1555,6 @@ class $IdeaModulesTable extends IdeaModules
     } else if (isInserting) {
       context.missing(_ideaIdMeta);
     }
-    if (data.containsKey('type')) {
-      context.handle(
-        _typeMeta,
-        type.isAcceptableOrUnknown(data['type']!, _typeMeta),
-      );
-    } else if (isInserting) {
-      context.missing(_typeMeta);
-    }
     if (data.containsKey('title')) {
       context.handle(
         _titleMeta,
@@ -1610,10 +1602,12 @@ class $IdeaModulesTable extends IdeaModules
         DriftSqlType.string,
         data['${effectivePrefix}idea_id'],
       )!,
-      type: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}type'],
-      )!,
+      type: $IdeaModulesTable.$convertertype.fromSql(
+        attachedDatabase.typeMapping.read(
+          DriftSqlType.string,
+          data['${effectivePrefix}type'],
+        )!,
+      ),
       title: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}title'],
@@ -1637,12 +1631,15 @@ class $IdeaModulesTable extends IdeaModules
   $IdeaModulesTable createAlias(String alias) {
     return $IdeaModulesTable(attachedDatabase, alias);
   }
+
+  static JsonTypeConverter2<IdeaModuleType, String, String> $convertertype =
+      const EnumNameConverter<IdeaModuleType>(IdeaModuleType.values);
 }
 
 class IdeaModule extends DataClass implements Insertable<IdeaModule> {
   final String id;
   final String ideaId;
-  final String type;
+  final IdeaModuleType type;
   final String title;
   final int sortOrder;
   final DateTime createdAt;
@@ -1661,7 +1658,11 @@ class IdeaModule extends DataClass implements Insertable<IdeaModule> {
     final map = <String, Expression>{};
     map['id'] = Variable<String>(id);
     map['idea_id'] = Variable<String>(ideaId);
-    map['type'] = Variable<String>(type);
+    {
+      map['type'] = Variable<String>(
+        $IdeaModulesTable.$convertertype.toSql(type),
+      );
+    }
     map['title'] = Variable<String>(title);
     map['sort_order'] = Variable<int>(sortOrder);
     map['created_at'] = Variable<DateTime>(createdAt);
@@ -1689,7 +1690,9 @@ class IdeaModule extends DataClass implements Insertable<IdeaModule> {
     return IdeaModule(
       id: serializer.fromJson<String>(json['id']),
       ideaId: serializer.fromJson<String>(json['ideaId']),
-      type: serializer.fromJson<String>(json['type']),
+      type: $IdeaModulesTable.$convertertype.fromJson(
+        serializer.fromJson<String>(json['type']),
+      ),
       title: serializer.fromJson<String>(json['title']),
       sortOrder: serializer.fromJson<int>(json['sortOrder']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
@@ -1702,7 +1705,9 @@ class IdeaModule extends DataClass implements Insertable<IdeaModule> {
     return <String, dynamic>{
       'id': serializer.toJson<String>(id),
       'ideaId': serializer.toJson<String>(ideaId),
-      'type': serializer.toJson<String>(type),
+      'type': serializer.toJson<String>(
+        $IdeaModulesTable.$convertertype.toJson(type),
+      ),
       'title': serializer.toJson<String>(title),
       'sortOrder': serializer.toJson<int>(sortOrder),
       'createdAt': serializer.toJson<DateTime>(createdAt),
@@ -1713,7 +1718,7 @@ class IdeaModule extends DataClass implements Insertable<IdeaModule> {
   IdeaModule copyWith({
     String? id,
     String? ideaId,
-    String? type,
+    IdeaModuleType? type,
     String? title,
     int? sortOrder,
     DateTime? createdAt,
@@ -1772,7 +1777,7 @@ class IdeaModule extends DataClass implements Insertable<IdeaModule> {
 class IdeaModulesCompanion extends UpdateCompanion<IdeaModule> {
   final Value<String> id;
   final Value<String> ideaId;
-  final Value<String> type;
+  final Value<IdeaModuleType> type;
   final Value<String> title;
   final Value<int> sortOrder;
   final Value<DateTime> createdAt;
@@ -1791,7 +1796,7 @@ class IdeaModulesCompanion extends UpdateCompanion<IdeaModule> {
   IdeaModulesCompanion.insert({
     required String id,
     required String ideaId,
-    required String type,
+    required IdeaModuleType type,
     required String title,
     this.sortOrder = const Value.absent(),
     required DateTime createdAt,
@@ -1828,7 +1833,7 @@ class IdeaModulesCompanion extends UpdateCompanion<IdeaModule> {
   IdeaModulesCompanion copyWith({
     Value<String>? id,
     Value<String>? ideaId,
-    Value<String>? type,
+    Value<IdeaModuleType>? type,
     Value<String>? title,
     Value<int>? sortOrder,
     Value<DateTime>? createdAt,
@@ -1857,7 +1862,9 @@ class IdeaModulesCompanion extends UpdateCompanion<IdeaModule> {
       map['idea_id'] = Variable<String>(ideaId.value);
     }
     if (type.present) {
-      map['type'] = Variable<String>(type.value);
+      map['type'] = Variable<String>(
+        $IdeaModulesTable.$convertertype.toSql(type.value),
+      );
     }
     if (title.present) {
       map['title'] = Variable<String>(title.value);
@@ -4079,7 +4086,7 @@ typedef $$IdeaModulesTableCreateCompanionBuilder =
     IdeaModulesCompanion Function({
       required String id,
       required String ideaId,
-      required String type,
+      required IdeaModuleType type,
       required String title,
       Value<int> sortOrder,
       required DateTime createdAt,
@@ -4090,7 +4097,7 @@ typedef $$IdeaModulesTableUpdateCompanionBuilder =
     IdeaModulesCompanion Function({
       Value<String> id,
       Value<String> ideaId,
-      Value<String> type,
+      Value<IdeaModuleType> type,
       Value<String> title,
       Value<int> sortOrder,
       Value<DateTime> createdAt,
@@ -4180,9 +4187,10 @@ class $$IdeaModulesTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
-  ColumnFilters<String> get type => $composableBuilder(
+  ColumnWithTypeConverterFilters<IdeaModuleType, IdeaModuleType, String>
+  get type => $composableBuilder(
     column: $table.type,
-    builder: (column) => ColumnFilters(column),
+    builder: (column) => ColumnWithTypeConverterFilters(column),
   );
 
   ColumnFilters<String> get title => $composableBuilder(
@@ -4354,7 +4362,7 @@ class $$IdeaModulesTableAnnotationComposer
   GeneratedColumn<String> get id =>
       $composableBuilder(column: $table.id, builder: (column) => column);
 
-  GeneratedColumn<String> get type =>
+  GeneratedColumnWithTypeConverter<IdeaModuleType, String> get type =>
       $composableBuilder(column: $table.type, builder: (column) => column);
 
   GeneratedColumn<String> get title =>
@@ -4478,7 +4486,7 @@ class $$IdeaModulesTableTableManager
               ({
                 Value<String> id = const Value.absent(),
                 Value<String> ideaId = const Value.absent(),
-                Value<String> type = const Value.absent(),
+                Value<IdeaModuleType> type = const Value.absent(),
                 Value<String> title = const Value.absent(),
                 Value<int> sortOrder = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
@@ -4498,7 +4506,7 @@ class $$IdeaModulesTableTableManager
               ({
                 required String id,
                 required String ideaId,
-                required String type,
+                required IdeaModuleType type,
                 required String title,
                 Value<int> sortOrder = const Value.absent(),
                 required DateTime createdAt,

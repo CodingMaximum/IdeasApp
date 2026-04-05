@@ -48,3 +48,21 @@ final archivedIdeasCountProvider = Provider<int>((ref) {
     orElse: () => 0,
   );
 });
+
+final ideaModulesProvider =
+    StreamProvider.family<List<IdeaModule>, String>((ref, ideaId) {
+  final repo = ref.watch(ideaRepositoryProvider);
+  return repo.watchModulesForIdea(ideaId);
+});
+
+final ideaChecklistItemsProvider =
+    StreamProvider.family<List<IdeaChecklistItem>, String>((ref, moduleId) {
+  final repo = ref.watch(ideaRepositoryProvider);
+  return repo.watchChecklistItems(moduleId);
+});
+
+final ideaLinkItemsProvider =
+    StreamProvider.family<List<IdeaLinkItem>, String>((ref, moduleId) {
+  final repo = ref.watch(ideaRepositoryProvider);
+  return repo.watchLinkItems(moduleId);
+});

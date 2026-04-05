@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:ideas_app/data/db/app_database.dart';
+import 'package:ideas_app/data/enums/idea_module_type.dart';
 import 'package:ideas_app/features/ideas/logic/providers.dart';
 import 'package:ideas_app/features/ideas/ui/widgets/category_selection.dart';
+import 'package:ideas_app/features/ideas/ui/widgets/idea_checklist_module_card.dart';
+import 'package:ideas_app/features/ideas/ui/widgets/idea_links_module_card.dart';
 import 'package:ideas_app/features/ideas/ui/widgets/status_selection.dart';
 
 class IdeaDetailPage extends ConsumerWidget {
@@ -48,11 +51,56 @@ class IdeaDetailPage extends ConsumerWidget {
     ).pop({'action': 'deleted', 'ideaId': idea.id, 'title': idea.title});
   }
 
+  Future<void> _showAddModuleMenu(
+    BuildContext context,
+    WidgetRef ref,
+    String ideaId,
+  ) async {
+    final selected = await showMenu<String>(
+      context: context,
+      position: const RelativeRect.fromLTRB(1000, 140, 16, 0),
+      items: const [
+        PopupMenuItem<String>(
+          value: 'checklist',
+          child: ListTile(
+            contentPadding: EdgeInsets.zero,
+            leading: Icon(Icons.checklist),
+            title: Text('Checkliste'),
+            subtitle: Text('Mehrere Punkte sammeln'),
+          ),
+        ),
+        PopupMenuItem<String>(
+          value: 'links',
+          child: ListTile(
+            contentPadding: EdgeInsets.zero,
+            leading: Icon(Icons.link),
+            title: Text('Links'),
+            subtitle: Text('URLs und Quellen sammeln'),
+          ),
+        ),
+      ],
+    );
+
+    if (selected == null) return;
+
+    final repo = ref.read(ideaRepositoryProvider);
+
+    switch (selected) {
+      case 'checklist':
+        await repo.addChecklistModule(ideaId);
+        break;
+      case 'links':
+        await repo.addLinksModule(ideaId);
+        break;
+    }
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final ideaAsync = ref.watch(ideaByIdProvider(ideaId));
     final categoriesAsync = ref.watch(categoriesProvider);
     final statusesAsync = ref.watch(ideaStatusesProvider);
+    final modulesAsync = ref.watch(ideaModulesProvider(ideaId));
 
     return ideaAsync.when(
       loading: () =>
@@ -130,8 +178,7 @@ class IdeaDetailPage extends ConsumerWidget {
                   padding: EdgeInsets.symmetric(vertical: 8),
                   child: CircularProgressIndicator(),
                 ),
-                error: (e, _) =>
-                    Text('Status konnten nicht geladen werden: $e'),
+                error: (e, _) => Text('Status konnten nicht geladen werden: $e'),
                 data: (statuses) => StatusSelection(
                   value: idea.statusId,
                   statuses: statuses,
@@ -144,6 +191,12 @@ class IdeaDetailPage extends ConsumerWidget {
               ),
               const SizedBox(height: 24),
               _DescriptionSection(idea: idea),
+              const SizedBox(height: 24),
+              _ModulesSection(
+                ideaId: idea.id,
+                modulesAsync: modulesAsync,
+                onAddModule: () => _showAddModuleMenu(context, ref, idea.id),
+              ),
               const SizedBox(height: 24),
               Text(
                 'Erstellt: ${idea.createdAt}',
@@ -158,6 +211,100 @@ class IdeaDetailPage extends ConsumerWidget {
         );
       },
     );
+  }
+}
+
+class _ModulesSection extends ConsumerWidget {
+  final String ideaId;
+  final AsyncValue<List<IdeaModule>> modulesAsync;
+  final VoidCallback onAddModule;
+
+  const _ModulesSection({
+    required this.ideaId,
+    required this.modulesAsync,
+    required this.onAddModule,
+  });
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Card(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Module',
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Füge zusätzliche Bereiche zu deiner Idee hinzu, zum Beispiel Checklisten oder eine Sammlung von Links.',
+                  style: Theme.of(context).textTheme.bodyMedium,
+                ),
+                const SizedBox(height: 16),
+                FilledButton.icon(
+                  onPressed: onAddModule,
+                  icon: const Icon(Icons.add),
+                  label: const Text('Modul hinzufügen'),
+                ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 16),
+        modulesAsync.when(
+          loading: () => const Center(child: CircularProgressIndicator()),
+          error: (e, _) => Card(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Text('Module konnten nicht geladen werden: $e'),
+            ),
+          ),
+          data: (modules) {
+            if (modules.isEmpty) {
+              return Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Text(
+                    'Noch keine Module vorhanden.',
+                    style: Theme.of(context).textTheme.bodyMedium,
+                  ),
+                ),
+              );
+            }
+
+            return Column(
+              children: [
+                for (final module in modules) ...[
+                  _ModuleRenderer(module: module),
+                  const SizedBox(height: 12),
+                ],
+              ],
+            );
+          },
+        ),
+      ],
+    );
+  }
+}
+
+class _ModuleRenderer extends ConsumerWidget {
+  final IdeaModule module;
+
+  const _ModuleRenderer({required this.module});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    switch (module.type) {
+      case IdeaModuleType.checklist:
+        return IdeaChecklistModuleCard(module: module);
+      case IdeaModuleType.links:
+        return IdeaLinksModuleCard(module: module);
+    }
   }
 }
 
@@ -189,9 +336,7 @@ class _TitleSection {
                 final newTitle = controller.text.trim();
                 if (newTitle.isEmpty) return;
 
-                await ref
-                    .read(ideaRepositoryProvider)
-                    .updateIdea(
+                await ref.read(ideaRepositoryProvider).updateIdea(
                       id: idea.id,
                       title: newTitle,
                       description: idea.description ?? '',
@@ -253,9 +398,7 @@ class _DescriptionSectionState extends ConsumerState<_DescriptionSection> {
     final newDescription = _controller.text.trim();
     if (newDescription == _lastSavedValue) return;
 
-    await ref
-        .read(ideaRepositoryProvider)
-        .updateIdea(
+    await ref.read(ideaRepositoryProvider).updateIdea(
           id: widget.idea.id,
           title: widget.idea.title,
           description: newDescription,
