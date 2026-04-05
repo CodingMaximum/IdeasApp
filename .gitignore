@@ -1,0 +1,43 @@
+# Flutter/Dart related
+**/build/
+**/.dart_tool/
+**/.packages
+**/.pub-cache/
+**/.pub/
+**/.flutter-plugins
+**/.flutter-plugins-dependencies
+
+# Artifacts
+**/*.p7b
+**/*.p12
+**/*.cert
+**/*.der
+
+# Android related
+**/project.skp
+**/captures/
+**/*.apk
+**/*.ap_
+**/*.aab
+**/*.dex
+**/*.class
+**/local.properties
+
+# iOS/macOS related
+**/Pods/
+**/.generated/
+**/Podfile.lock
+**/*.mode1v3
+**/*.mode2v3
+**/*.perspectivev3
+**/xcuserdata/
+**/DerivedData/
+
+# IDE related
+**/.idea/
+**/.vscode/
+**/*.iml
+
+# Databases (if local copies exist)
+**/*.db
+**/*.sqlite
