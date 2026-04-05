@@ -1,7 +1,7 @@
+import 'package:drift/drift.dart';
 import 'package:ideas_app/data/db/seed_ids.dart';
 import 'package:ideas_app/data/enums/idea_module_type.dart';
 import 'package:uuid/uuid.dart';
-import 'package:drift/drift.dart';
 
 import '../db/app_database.dart';
 
@@ -132,15 +132,33 @@ class IdeaRepository {
   }
 
   Future<void> addChecklistModule(String ideaId) async {
+    await addChecklistModuleWithTitle(
+      ideaId: ideaId,
+      title: 'Neue Checkliste',
+    );
+  }
+
+  Future<void> addLinksModule(String ideaId) async {
+    await addLinksModuleWithTitle(
+      ideaId: ideaId,
+      title: 'Neue Links',
+    );
+  }
+
+  Future<void> addChecklistModuleWithTitle({
+    required String ideaId,
+    required String title,
+  }) async {
     final now = DateTime.now();
     final sortOrder = await _nextModuleSortOrder(ideaId);
+    final trimmed = title.trim();
 
     await db.into(db.ideaModules).insert(
       IdeaModulesCompanion.insert(
         id: uuid.v4(),
         ideaId: ideaId,
         type: IdeaModuleType.checklist,
-        title: 'Neue Checkliste',
+        title: trimmed.isEmpty ? 'Neue Checkliste' : trimmed,
         sortOrder: Value(sortOrder),
         createdAt: now,
         updatedAt: now,
@@ -148,16 +166,20 @@ class IdeaRepository {
     );
   }
 
-  Future<void> addLinksModule(String ideaId) async {
+  Future<void> addLinksModuleWithTitle({
+    required String ideaId,
+    required String title,
+  }) async {
     final now = DateTime.now();
     final sortOrder = await _nextModuleSortOrder(ideaId);
+    final trimmed = title.trim();
 
     await db.into(db.ideaModules).insert(
       IdeaModulesCompanion.insert(
         id: uuid.v4(),
         ideaId: ideaId,
         type: IdeaModuleType.links,
-        title: 'Neue Links',
+        title: trimmed.isEmpty ? 'Neue Links' : trimmed,
         sortOrder: Value(sortOrder),
         createdAt: now,
         updatedAt: now,
@@ -165,20 +187,83 @@ class IdeaRepository {
     );
   }
 
+  Future<void> renameModule(String moduleId, String title) async {
+    final trimmed = title.trim();
+    if (trimmed.isEmpty) return;
+
+    await (db.update(db.ideaModules)..where((tbl) => tbl.id.equals(moduleId)))
+        .write(
+      IdeaModulesCompanion(
+        title: Value(trimmed),
+        updatedAt: Value(DateTime.now()),
+      ),
+    );
+  }
+
   Future<void> addChecklistItem(String moduleId) async {
+    await addChecklistItemWithContent(
+      moduleId: moduleId,
+      content: 'Neuer Punkt',
+    );
+  }
+
+  Future<void> addChecklistItemWithContent({
+    required String moduleId,
+    required String content,
+  }) async {
     final now = DateTime.now();
     final sortOrder = await _nextChecklistItemSortOrder(moduleId);
+    final trimmed = content.trim();
 
     await db.into(db.ideaChecklistItems).insert(
       IdeaChecklistItemsCompanion.insert(
         id: uuid.v4(),
         moduleId: moduleId,
-        content: 'Neuer Punkt',
+        content: trimmed.isEmpty ? 'Neuer Punkt' : trimmed,
         sortOrder: Value(sortOrder),
         createdAt: now,
         updatedAt: now,
       ),
     );
+  }
+
+  Future<void> updateChecklistItem({
+    required String itemId,
+    required String content,
+    required bool isDone,
+  }) async {
+    final trimmed = content.trim();
+    if (trimmed.isEmpty) return;
+
+    await (db.update(db.ideaChecklistItems)
+          ..where((tbl) => tbl.id.equals(itemId)))
+        .write(
+      IdeaChecklistItemsCompanion(
+        content: Value(trimmed),
+        isDone: Value(isDone),
+        updatedAt: Value(DateTime.now()),
+      ),
+    );
+  }
+
+  Future<void> toggleChecklistItem({
+    required String itemId,
+    required bool isDone,
+  }) async {
+    await (db.update(db.ideaChecklistItems)
+          ..where((tbl) => tbl.id.equals(itemId)))
+        .write(
+      IdeaChecklistItemsCompanion(
+        isDone: Value(isDone),
+        updatedAt: Value(DateTime.now()),
+      ),
+    );
+  }
+
+  Future<void> deleteChecklistItem(String itemId) async {
+    await (db.delete(db.ideaChecklistItems)
+          ..where((tbl) => tbl.id.equals(itemId)))
+        .go();
   }
 
   Future<void> addLinkItem({
@@ -193,8 +278,10 @@ class IdeaRepository {
       IdeaLinkItemsCompanion.insert(
         id: uuid.v4(),
         moduleId: moduleId,
-        url: url,
-        label: Value(label),
+        url: url.trim(),
+        label: Value(
+          label == null || label.trim().isEmpty ? null : label.trim(),
+        ),
         sortOrder: Value(sortOrder),
         createdAt: now,
         updatedAt: now,
@@ -202,9 +289,46 @@ class IdeaRepository {
     );
   }
 
-  Future<void> deleteModule(String moduleId) async {
-    await (db.delete(db.ideaModules)..where((tbl) => tbl.id.equals(moduleId)))
+  Future<void> updateLinkItem({
+    required String itemId,
+    required String url,
+    String? label,
+  }) async {
+    final trimmedUrl = url.trim();
+    final trimmedLabel = label?.trim();
+
+    if (trimmedUrl.isEmpty) return;
+
+    await (db.update(db.ideaLinkItems)..where((tbl) => tbl.id.equals(itemId)))
+        .write(
+      IdeaLinkItemsCompanion(
+        url: Value(trimmedUrl),
+        label: Value(
+          trimmedLabel == null || trimmedLabel.isEmpty ? null : trimmedLabel,
+        ),
+        updatedAt: Value(DateTime.now()),
+      ),
+    );
+  }
+
+  Future<void> deleteLinkItem(String itemId) async {
+    await (db.delete(db.ideaLinkItems)..where((tbl) => tbl.id.equals(itemId)))
         .go();
+  }
+
+  Future<void> deleteModule(String moduleId) async {
+    await db.transaction(() async {
+      await (db.delete(db.ideaChecklistItems)
+            ..where((tbl) => tbl.moduleId.equals(moduleId)))
+          .go();
+
+      await (db.delete(db.ideaLinkItems)
+            ..where((tbl) => tbl.moduleId.equals(moduleId)))
+          .go();
+
+      await (db.delete(db.ideaModules)..where((tbl) => tbl.id.equals(moduleId)))
+          .go();
+    });
   }
 
   Future<int> _nextModuleSortOrder(String ideaId) async {

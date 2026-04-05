@@ -51,48 +51,19 @@ class IdeaDetailPage extends ConsumerWidget {
     ).pop({'action': 'deleted', 'ideaId': idea.id, 'title': idea.title});
   }
 
-  Future<void> _showAddModuleMenu(
+  Future<void> _showAddModuleBottomSheet(
     BuildContext context,
     WidgetRef ref,
     String ideaId,
   ) async {
-    final selected = await showMenu<String>(
+    await showModalBottomSheet<void>(
       context: context,
-      position: const RelativeRect.fromLTRB(1000, 140, 16, 0),
-      items: const [
-        PopupMenuItem<String>(
-          value: 'checklist',
-          child: ListTile(
-            contentPadding: EdgeInsets.zero,
-            leading: Icon(Icons.checklist),
-            title: Text('Checkliste'),
-            subtitle: Text('Mehrere Punkte sammeln'),
-          ),
-        ),
-        PopupMenuItem<String>(
-          value: 'links',
-          child: ListTile(
-            contentPadding: EdgeInsets.zero,
-            leading: Icon(Icons.link),
-            title: Text('Links'),
-            subtitle: Text('URLs und Quellen sammeln'),
-          ),
-        ),
-      ],
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (sheetContext) {
+        return _AddModuleBottomSheet(ideaId: ideaId);
+      },
     );
-
-    if (selected == null) return;
-
-    final repo = ref.read(ideaRepositoryProvider);
-
-    switch (selected) {
-      case 'checklist':
-        await repo.addChecklistModule(ideaId);
-        break;
-      case 'links':
-        await repo.addLinksModule(ideaId);
-        break;
-    }
   }
 
   @override
@@ -178,7 +149,8 @@ class IdeaDetailPage extends ConsumerWidget {
                   padding: EdgeInsets.symmetric(vertical: 8),
                   child: CircularProgressIndicator(),
                 ),
-                error: (e, _) => Text('Status konnten nicht geladen werden: $e'),
+                error: (e, _) =>
+                    Text('Status konnten nicht geladen werden: $e'),
                 data: (statuses) => StatusSelection(
                   value: idea.statusId,
                   statuses: statuses,
@@ -195,7 +167,8 @@ class IdeaDetailPage extends ConsumerWidget {
               _ModulesSection(
                 ideaId: idea.id,
                 modulesAsync: modulesAsync,
-                onAddModule: () => _showAddModuleMenu(context, ref, idea.id),
+                onAddModule: () =>
+                    _showAddModuleBottomSheet(context, ref, idea.id),
               ),
               const SizedBox(height: 24),
               Text(
@@ -236,10 +209,7 @@ class _ModulesSection extends ConsumerWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  'Module',
-                  style: Theme.of(context).textTheme.titleMedium,
-                ),
+                Text('Module', style: Theme.of(context).textTheme.titleMedium),
                 const SizedBox(height: 8),
                 Text(
                   'Füge zusätzliche Bereiche zu deiner Idee hinzu, zum Beispiel Checklisten oder eine Sammlung von Links.',
@@ -336,7 +306,9 @@ class _TitleSection {
                 final newTitle = controller.text.trim();
                 if (newTitle.isEmpty) return;
 
-                await ref.read(ideaRepositoryProvider).updateIdea(
+                await ref
+                    .read(ideaRepositoryProvider)
+                    .updateIdea(
                       id: idea.id,
                       title: newTitle,
                       description: idea.description ?? '',
@@ -398,7 +370,9 @@ class _DescriptionSectionState extends ConsumerState<_DescriptionSection> {
     final newDescription = _controller.text.trim();
     if (newDescription == _lastSavedValue) return;
 
-    await ref.read(ideaRepositoryProvider).updateIdea(
+    await ref
+        .read(ideaRepositoryProvider)
+        .updateIdea(
           id: widget.idea.id,
           title: widget.idea.title,
           description: newDescription,
@@ -435,6 +409,172 @@ class _DescriptionSectionState extends ConsumerState<_DescriptionSection> {
           onTapOutside: (_) => _focusNode.unfocus(),
         ),
       ],
+    );
+  }
+}
+
+
+class _AddModuleBottomSheet extends ConsumerStatefulWidget {
+  final String ideaId;
+
+  const _AddModuleBottomSheet({
+    required this.ideaId,
+  });
+
+  @override
+  ConsumerState<_AddModuleBottomSheet> createState() =>
+      _AddModuleBottomSheetState();
+}
+
+class _AddModuleBottomSheetState
+    extends ConsumerState<_AddModuleBottomSheet> {
+  final _titleController = TextEditingController();
+  IdeaModuleType _selectedType = IdeaModuleType.checklist;
+  bool _isSaving = false;
+
+  Future<void> _submit() async {
+    if (_isSaving) return;
+
+    setState(() {
+      _isSaving = true;
+    });
+
+    try {
+      final repo = ref.read(ideaRepositoryProvider);
+      final title = _titleController.text.trim();
+
+      switch (_selectedType) {
+        case IdeaModuleType.checklist:
+          await repo.addChecklistModuleWithTitle(
+            ideaId: widget.ideaId,
+            title: title,
+          );
+          break;
+        case IdeaModuleType.links:
+          await repo.addLinksModuleWithTitle(
+            ideaId: widget.ideaId,
+            title: title,
+          );
+          break;
+      }
+
+      if (mounted) {
+        Navigator.of(context).pop();
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isSaving = false;
+        });
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    _titleController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final bottomInset = MediaQuery.of(context).viewInsets.bottom;
+
+    return SafeArea(
+      child: AnimatedPadding(
+        duration: const Duration(milliseconds: 200),
+        curve: Curves.easeOut,
+        padding: EdgeInsets.only(
+          left: 16,
+          top: 8,
+          right: 16,
+          bottom: bottomInset + 16,
+        ),
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Modul hinzufügen',
+                style: Theme.of(context).textTheme.titleLarge,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Wähle den Modultyp und gib einen Titel an.',
+                style: Theme.of(context).textTheme.bodyMedium,
+              ),
+              const SizedBox(height: 16),
+              RadioListTile<IdeaModuleType>(
+                contentPadding: EdgeInsets.zero,
+                value: IdeaModuleType.checklist,
+                groupValue: _selectedType,
+                onChanged: (value) {
+                  if (value == null) return;
+                  setState(() {
+                    _selectedType = value;
+                  });
+                },
+                title: const Text('Checkliste'),
+                subtitle: const Text('Mehrere Punkte sammeln und abhaken'),
+              ),
+              RadioListTile<IdeaModuleType>(
+                contentPadding: EdgeInsets.zero,
+                value: IdeaModuleType.links,
+                groupValue: _selectedType,
+                onChanged: (value) {
+                  if (value == null) return;
+                  setState(() {
+                    _selectedType = value;
+                  });
+                },
+                title: const Text('Links'),
+                subtitle: const Text('URLs und Quellen sammeln'),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: _titleController,
+                autofocus: true,
+                textInputAction: TextInputAction.done,
+                decoration: InputDecoration(
+                  labelText: 'Titel',
+                  hintText: _selectedType == IdeaModuleType.checklist
+                      ? 'z. B. Packliste'
+                      : 'z. B. Inspirationsquellen',
+                  border: const OutlineInputBorder(),
+                ),
+                onSubmitted: (_) => _submit(),
+              ),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: _isSaving
+                          ? null
+                          : () => Navigator.of(context).pop(),
+                      child: const Text('Abbrechen'),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: FilledButton(
+                      onPressed: _isSaving ? null : _submit,
+                      child: _isSaving
+                          ? const SizedBox(
+                              height: 18,
+                              width: 18,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Text('Anlegen'),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
