@@ -30,29 +30,38 @@ class StatusSelection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Status - ${statuses.firstWhere((s) => s.id == value, orElse: () => statuses.first).name}',
-          style: Theme.of(context).textTheme.titleMedium,
-        ),
-        const SizedBox(height: 8),
-        SegmentedButton<String>(
-          showSelectedIcon: false,
-          segments: statuses.map((status) {
-            return ButtonSegment<String>(
-              value: status.id,
-              icon: Icon(_iconForStatus(status.name)),
-              tooltip: status.name,
-            );
-          }).toList(),
-          selected: {value},
-          onSelectionChanged: (selection) {
-            onChanged(selection.first);
-          },
-        ),
-      ],
+    final selectedStatus = statuses.firstWhere(
+      (s) => s.id == value,
+      orElse: () => statuses.first,
+    );
+
+    return SizedBox(
+      width: double.infinity,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Status - ${selectedStatus.name}',
+            style: Theme.of(context).textTheme.titleMedium,
+          ),
+          const SizedBox(height: 8),
+          SegmentedButton<String>(
+            showSelectedIcon: false,
+            expandedInsets: EdgeInsets.zero,
+            segments: statuses.map((status) {
+              return ButtonSegment<String>(
+                value: status.id,
+                icon: Icon(_iconForStatus(status.name)),
+                tooltip: status.name,
+              );
+            }).toList(),
+            selected: {value},
+            onSelectionChanged: (selection) {
+              onChanged(selection.first);
+            },
+          ),
+        ],
+      ),
     );
   }
 }

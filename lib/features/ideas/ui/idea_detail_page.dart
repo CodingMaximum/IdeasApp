@@ -125,45 +125,55 @@ class IdeaDetailPage extends ConsumerWidget {
           body: ListView(
             padding: const EdgeInsets.all(16),
             children: [
-              categoriesAsync.when(
-                loading: () => const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 8),
-                  child: CircularProgressIndicator(),
-                ),
-                error: (e, _) =>
-                    Text('Kategorien konnten nicht geladen werden: $e'),
-                data: (categories) => CategorySelection(
-                  value: idea.categoryId,
-                  categories: categories,
-                  onChanged: (categoryId) async {
-                    if (categoryId == null) return;
-                    await ref
-                        .read(ideaRepositoryProvider)
-                        .updateIdeaCategory(idea.id, categoryId);
-                  },
-                ),
-              ),
-              const SizedBox(height: 16),
-              statusesAsync.when(
-                loading: () => const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 8),
-                  child: CircularProgressIndicator(),
-                ),
-                error: (e, _) =>
-                    Text('Status konnten nicht geladen werden: $e'),
-                data: (statuses) => StatusSelection(
-                  value: idea.statusId,
-                  statuses: statuses,
-                  onChanged: (statusId) async {
-                    await ref
-                        .read(ideaRepositoryProvider)
-                        .updateIdeaStatus(idea.id, statusId);
-                  },
+              SizedBox(
+                width: double.infinity,
+                child: statusesAsync.when(
+                  loading: () => const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 8),
+                    child: CircularProgressIndicator(),
+                  ),
+                  error: (e, _) =>
+                      Text('Status konnten nicht geladen werden: $e'),
+                  data: (statuses) => StatusSelection(
+                    value: idea.statusId,
+                    statuses: statuses,
+                    onChanged: (statusId) async {
+                      await ref
+                          .read(ideaRepositoryProvider)
+                          .updateIdeaStatus(idea.id, statusId);
+                    },
+                  ),
                 ),
               ),
               const SizedBox(height: 24),
               _DescriptionSection(idea: idea),
               const SizedBox(height: 24),
+              
+              SizedBox(
+                width: double.infinity,
+                child: categoriesAsync.when(
+                  loading: () => const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 8),
+                    child: CircularProgressIndicator(),
+                  ),
+                  error: (e, _) =>
+                      Text('Kategorien konnten nicht geladen werden: $e'),
+                  data: (categories) => CategorySelection(
+                    value: idea.categoryId,
+                    categories: categories,
+                    onChanged: (categoryId) async {
+                      if (categoryId == null) return;
+                      await ref
+                          .read(ideaRepositoryProvider)
+                          .updateIdeaCategory(idea.id, categoryId);
+                    },
+                  ),
+                ),
+              ),
+
+
+              const SizedBox(height: 24),
+
               _ModulesSection(
                 ideaId: idea.id,
                 modulesAsync: modulesAsync,
@@ -413,21 +423,17 @@ class _DescriptionSectionState extends ConsumerState<_DescriptionSection> {
   }
 }
 
-
 class _AddModuleBottomSheet extends ConsumerStatefulWidget {
   final String ideaId;
 
-  const _AddModuleBottomSheet({
-    required this.ideaId,
-  });
+  const _AddModuleBottomSheet({required this.ideaId});
 
   @override
   ConsumerState<_AddModuleBottomSheet> createState() =>
       _AddModuleBottomSheetState();
 }
 
-class _AddModuleBottomSheetState
-    extends ConsumerState<_AddModuleBottomSheet> {
+class _AddModuleBottomSheetState extends ConsumerState<_AddModuleBottomSheet> {
   final _titleController = TextEditingController();
   IdeaModuleType _selectedType = IdeaModuleType.checklist;
   bool _isSaving = false;

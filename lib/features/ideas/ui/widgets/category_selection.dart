@@ -16,7 +16,7 @@ class CategorySelection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return DropdownMenu<String>(
-      width: 320,
+      width: double.infinity,
       initialSelection: value,
       label: const Text('Kategorie'),
       dropdownMenuEntries: categories
