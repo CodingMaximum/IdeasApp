@@ -1,16 +1,16 @@
 import 'package:flutter/foundation.dart';
-import 'dart:io' show Platform;
 
 bool get isMobilePlatform {
   if (kIsWeb) return false;
 
-  return Platform.isAndroid || Platform.isIOS;
+  return defaultTargetPlatform == TargetPlatform.android ||
+      defaultTargetPlatform == TargetPlatform.iOS;
 }
 
 bool get isDesktopPlatform {
   if (kIsWeb) return true;
 
-  return Platform.isMacOS ||
-      Platform.isWindows ||
-      Platform.isLinux;
+  return defaultTargetPlatform == TargetPlatform.macOS ||
+      defaultTargetPlatform == TargetPlatform.windows ||
+      defaultTargetPlatform == TargetPlatform.linux;
 }

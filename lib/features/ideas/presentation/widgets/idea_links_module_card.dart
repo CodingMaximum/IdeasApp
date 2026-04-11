@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:ideas_app/core/utils/platform.dart';
 import 'package:ideas_app/data/db/app_database.dart';
 import 'package:ideas_app/features/ideas/logic/providers.dart';
-import 'package:ideas_app/features/ideas/ui/widgets/module_card_header.dart';
-import 'package:ideas_app/features/ideas/ui/widgets/module_card_shell.dart';
-import 'package:ideas_app/features/ideas/ui/widgets/module_dialogs.dart';
+import 'package:ideas_app/features/ideas/presentation/widgets/module_card_header.dart';
+import 'package:ideas_app/features/ideas/presentation/widgets/module_card_shell.dart';
+import 'package:ideas_app/features/ideas/presentation/widgets/module_dialogs.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class IdeaLinksModuleCard extends ConsumerWidget {
@@ -49,7 +50,7 @@ class IdeaLinksModuleCard extends ConsumerWidget {
     }
   }
 
-   Future<void> _showRenameModuleDialog(
+  Future<void> _showRenameModuleDialog(
     BuildContext context,
     WidgetRef ref,
   ) async {
@@ -241,6 +242,18 @@ class IdeaLinksModuleCard extends ConsumerWidget {
     );
   }
 
+  Future<void> _deleteLinkItem(
+    BuildContext context,
+    WidgetRef ref,
+    IdeaLinkItem item,
+  ) async {
+    await ref.read(ideaRepositoryProvider).deleteLinkItem(item.id);
+
+    if (context.mounted) {
+      _showSnackBar(context, 'Link gelöscht.');
+    }
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final itemsAsync = ref.watch(ideaLinkItemsProvider(module.id));
@@ -278,68 +291,234 @@ class IdeaLinksModuleCard extends ConsumerWidget {
                 );
               }
 
-              return Column(
-                children: [
-                  for (final item in items)
-                    Dismissible(
-                      key: ValueKey(item.id),
-                      direction: DismissDirection.endToStart,
-                      background: Container(
-                        alignment: Alignment.centerRight,
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
-                        decoration: BoxDecoration(
-                          color: Theme.of(context).colorScheme.errorContainer,
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Icon(
-                          Icons.delete_outline,
-                          color: Theme.of(context).colorScheme.onErrorContainer,
-                        ),
-                      ),
-                      onDismissed: (_) async {
-                        await ref
-                            .read(ideaRepositoryProvider)
-                            .deleteLinkItem(item.id);
+              return ReorderableListView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                buildDefaultDragHandles: false,
+                proxyDecorator: (child, index, animation) {
+                  return AnimatedBuilder(
+                    animation: animation,
+                    builder: (context, _) {
+                      return Material(
+                        color: Colors.transparent,
+                        shadowColor: Colors.black26,
+                        elevation: 6,
+                        borderRadius: BorderRadius.circular(12),
+                        child: child,
+                      );
+                    },
+                  );
+                },
+                itemCount: items.length,
+                onReorder: (oldIndex, newIndex) async {
+                  await ref.read(ideaRepositoryProvider).reorderLinkItems(
+                        items: items,
+                        oldIndex: oldIndex,
+                        newIndex: newIndex,
+                      );
+                },
+                itemBuilder: (context, index) {
+                  final item = items[index];
 
-                        if (context.mounted) {
-                          _showSnackBar(context, 'Link gelöscht.');
-                        }
-                      },
-                      child: ListTile(
-                        contentPadding: EdgeInsets.zero,
-                        leading: const Icon(Icons.link),
-                        title: Text(
-                          (item.label ?? '').trim().isNotEmpty
-                              ? item.label!
-                              : item.url,
-                        ),
-                        subtitle: (item.label ?? '').trim().isNotEmpty
-                            ? Text(item.url)
-                            : null,
-                        onTap: () => _openLink(context, item.url),
-                        trailing: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            IconButton(
-                              tooltip: 'Link öffnen',
-                              onPressed: () => _openLink(context, item.url),
-                              icon: const Icon(Icons.open_in_new),
+                  return ReorderableDelayedDragStartListener(
+                    key: ValueKey(item.id),
+                    index: index,
+                    enabled: items.length > 1,
+                    child: Padding(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: isMobilePlatform
+                          ? _MobileLinkItem(
+                              item: item,
+                              onOpen: () => _openLink(context, item.url),
+                              onEdit: () => _showEditLinkDialog(
+                                context,
+                                ref,
+                                item,
+                              ),
+                              onDelete: () => _deleteLinkItem(
+                                context,
+                                ref,
+                                item,
+                              ),
+                            )
+                          : _DesktopLinkItem(
+                              item: item,
+                              onOpen: () => _openLink(context, item.url),
+                              onEdit: () => _showEditLinkDialog(
+                                context,
+                                ref,
+                                item,
+                              ),
+                              onDelete: () => _deleteLinkItem(
+                                context,
+                                ref,
+                                item,
+                              ),
                             ),
-                            IconButton(
-                              tooltip: 'Link bearbeiten',
-                              onPressed: () =>
-                                  _showEditLinkDialog(context, ref, item),
-                              icon: const Icon(Icons.edit_outlined),
-                            ),
-                          ],
-                        ),
-                      ),
                     ),
-                ],
+                  );
+                },
               );
             },
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _MobileLinkItem extends StatelessWidget {
+  final IdeaLinkItem item;
+  final VoidCallback onOpen;
+  final VoidCallback onEdit;
+  final VoidCallback onDelete;
+
+  const _MobileLinkItem({
+    required this.item,
+    required this.onOpen,
+    required this.onEdit,
+    required this.onDelete,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final hasLabel = (item.label ?? '').trim().isNotEmpty;
+
+    return Dismissible(
+      key: ValueKey('dismiss_${item.id}'),
+      direction: DismissDirection.endToStart,
+      background: Container(
+        alignment: Alignment.centerRight,
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.errorContainer,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Icon(
+          Icons.delete_outline,
+          color: Theme.of(context).colorScheme.onErrorContainer,
+        ),
+      ),
+      onDismissed: (_) => onDelete(),
+      child: Material(
+        color: Colors.transparent,
+        child: ListTile(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          contentPadding: const EdgeInsets.symmetric(horizontal: 12),
+          leading: const Icon(Icons.link),
+          title: Text(hasLabel ? item.label! : item.url),
+          subtitle: hasLabel ? Text(item.url) : null,
+          onTap: onOpen,
+          trailing: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              IconButton(
+                tooltip: 'Link öffnen',
+                onPressed: onOpen,
+                icon: const Icon(Icons.open_in_new),
+              ),
+              IconButton(
+                tooltip: 'Link bearbeiten',
+                onPressed: onEdit,
+                icon: const Icon(Icons.edit_outlined),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _DesktopLinkItem extends StatefulWidget {
+  final IdeaLinkItem item;
+  final VoidCallback onOpen;
+  final VoidCallback onEdit;
+  final VoidCallback onDelete;
+
+  const _DesktopLinkItem({
+    required this.item,
+    required this.onOpen,
+    required this.onEdit,
+    required this.onDelete,
+  });
+
+  @override
+  State<_DesktopLinkItem> createState() => _DesktopLinkItemState();
+}
+
+class _DesktopLinkItemState extends State<_DesktopLinkItem> {
+  bool _isHovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final hasLabel = (widget.item.label ?? '').trim().isNotEmpty;
+
+    return MouseRegion(
+      onEnter: (_) => setState(() => _isHovered = true),
+      onExit: (_) => setState(() => _isHovered = false),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 120),
+        decoration: BoxDecoration(
+          color: _isHovered
+              ? Theme.of(context).hoverColor.withValues(alpha: 0.08)
+              : Colors.transparent,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: ListTile(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          contentPadding: const EdgeInsets.symmetric(horizontal: 12),
+          leading: const Icon(Icons.link),
+          title: Text(hasLabel ? widget.item.label! : widget.item.url),
+          subtitle: hasLabel ? Text(widget.item.url) : null,
+          onTap: widget.onOpen,
+          trailing: SizedBox(
+            width: 132,
+            child: IgnorePointer(
+              ignoring: !_isHovered,
+              child: AnimatedOpacity(
+                opacity: _isHovered ? 1 : 0,
+                duration: const Duration(milliseconds: 150),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    Tooltip(
+                      message: 'Link öffnen',
+                      child: IconButton(
+                        onPressed: widget.onOpen,
+                        icon: const Icon(Icons.open_in_new),
+                        iconSize: 20,
+                        splashRadius: 18,
+                      ),
+                    ),
+                    Tooltip(
+                      message: 'Link bearbeiten',
+                      child: IconButton(
+                        onPressed: widget.onEdit,
+                        icon: const Icon(Icons.edit_outlined),
+                        iconSize: 20,
+                        splashRadius: 18,
+                      ),
+                    ),
+                    Tooltip(
+                      message: 'Link löschen',
+                      child: IconButton(
+                        onPressed: widget.onDelete,
+                        icon: const Icon(Icons.delete_outline),
+                        iconSize: 20,
+                        splashRadius: 18,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }

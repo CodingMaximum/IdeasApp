@@ -3,10 +3,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:ideas_app/data/db/app_database.dart';
 import 'package:ideas_app/data/enums/idea_module_type.dart';
 import 'package:ideas_app/features/ideas/logic/providers.dart';
-import 'package:ideas_app/features/ideas/ui/widgets/category_selection.dart';
-import 'package:ideas_app/features/ideas/ui/widgets/idea_checklist_module_card.dart';
-import 'package:ideas_app/features/ideas/ui/widgets/idea_links_module_card.dart';
-import 'package:ideas_app/features/ideas/ui/widgets/status_selection.dart';
+import 'package:ideas_app/features/ideas/presentation/widgets/category_selection.dart';
+import 'package:ideas_app/features/ideas/presentation/widgets/idea_checklist_module_card.dart';
+import 'package:ideas_app/features/ideas/presentation/widgets/idea_links_module_card.dart';
+import 'package:ideas_app/features/ideas/presentation/widgets/status_selection.dart';
 
 class IdeaDetailPage extends ConsumerWidget {
   final String ideaId;
@@ -148,7 +148,7 @@ class IdeaDetailPage extends ConsumerWidget {
               const SizedBox(height: 24),
               _DescriptionSection(idea: idea),
               const SizedBox(height: 24),
-              
+
               SizedBox(
                 width: double.infinity,
                 child: categoriesAsync.when(
@@ -170,7 +170,6 @@ class IdeaDetailPage extends ConsumerWidget {
                   ),
                 ),
               ),
-
 
               const SizedBox(height: 24),
 
@@ -213,57 +212,72 @@ class _ModulesSection extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Card(
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('Module', style: Theme.of(context).textTheme.titleMedium),
-                const SizedBox(height: 8),
-                Text(
-                  'Füge zusätzliche Bereiche zu deiner Idee hinzu, zum Beispiel Checklisten oder eine Sammlung von Links.',
-                  style: Theme.of(context).textTheme.bodyMedium,
-                ),
-                const SizedBox(height: 16),
-                FilledButton.icon(
-                  onPressed: onAddModule,
-                  icon: const Icon(Icons.add),
-                  label: const Text('Modul hinzufügen'),
-                ),
-              ],
+        Row(
+          children: [
+            Text('Module', style: Theme.of(context).textTheme.titleLarge),
+            const Spacer(),
+            FilledButton.icon(
+              onPressed: onAddModule,
+              icon: const Icon(Icons.add),
+              label: const Text('Modul hinzufügen'),
             ),
-          ),
+          ],
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: 12),
         modulesAsync.when(
-          loading: () => const Center(child: CircularProgressIndicator()),
-          error: (e, _) => Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Text('Module konnten nicht geladen werden: $e'),
-            ),
+          loading: () => const Padding(
+            padding: EdgeInsets.symmetric(vertical: 8),
+            child: CircularProgressIndicator(),
           ),
+          error: (e, _) => Text('Module konnten nicht geladen werden: $e'),
           data: (modules) {
             if (modules.isEmpty) {
-              return Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Text(
-                    'Noch keine Module vorhanden.',
-                    style: Theme.of(context).textTheme.bodyMedium,
-                  ),
-                ),
+              return const Padding(
+                padding: EdgeInsets.symmetric(vertical: 8),
+                child: Text('Noch keine Module vorhanden.'),
               );
             }
 
-            return Column(
-              children: [
-                for (final module in modules) ...[
-                  _ModuleRenderer(module: module),
-                  const SizedBox(height: 12),
-                ],
-              ],
+            return ReorderableListView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              buildDefaultDragHandles: false,
+              proxyDecorator: (child, index, animation) {
+                return AnimatedBuilder(
+                  animation: animation,
+                  builder: (context, _) {
+                    return Material(
+                      color: Colors.transparent,
+                      shadowColor: Colors.black26,
+                      elevation: 8,
+                      borderRadius: BorderRadius.circular(12),
+                      child: child,
+                    );
+                  },
+                );
+              },
+              itemCount: modules.length,
+              onReorder: (oldIndex, newIndex) async {
+                await ref
+                    .read(ideaRepositoryProvider)
+                    .reorderModules(
+                      modules: modules,
+                      oldIndex: oldIndex,
+                      newIndex: newIndex,
+                    );
+              },
+              itemBuilder: (context, index) {
+                final module = modules[index];
+
+                return ReorderableDelayedDragStartListener(
+                  key: ValueKey(module.id),
+                  index: index,
+                  child: Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: _ModuleRenderer(module: module),
+                  ),
+                );
+              },
             );
           },
         ),

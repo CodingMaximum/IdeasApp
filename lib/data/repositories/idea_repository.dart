@@ -132,17 +132,11 @@ class IdeaRepository {
   }
 
   Future<void> addChecklistModule(String ideaId) async {
-    await addChecklistModuleWithTitle(
-      ideaId: ideaId,
-      title: 'Neue Checkliste',
-    );
+    await addChecklistModuleWithTitle(ideaId: ideaId, title: 'Neue Checkliste');
   }
 
   Future<void> addLinksModule(String ideaId) async {
-    await addLinksModuleWithTitle(
-      ideaId: ideaId,
-      title: 'Neue Links',
-    );
+    await addLinksModuleWithTitle(ideaId: ideaId, title: 'Neue Links');
   }
 
   Future<void> addChecklistModuleWithTitle({
@@ -153,17 +147,19 @@ class IdeaRepository {
     final sortOrder = await _nextModuleSortOrder(ideaId);
     final trimmed = title.trim();
 
-    await db.into(db.ideaModules).insert(
-      IdeaModulesCompanion.insert(
-        id: uuid.v4(),
-        ideaId: ideaId,
-        type: IdeaModuleType.checklist,
-        title: trimmed.isEmpty ? 'Neue Checkliste' : trimmed,
-        sortOrder: Value(sortOrder),
-        createdAt: now,
-        updatedAt: now,
-      ),
-    );
+    await db
+        .into(db.ideaModules)
+        .insert(
+          IdeaModulesCompanion.insert(
+            id: uuid.v4(),
+            ideaId: ideaId,
+            type: IdeaModuleType.checklist,
+            title: trimmed.isEmpty ? 'Neue Checkliste' : trimmed,
+            sortOrder: Value(sortOrder),
+            createdAt: now,
+            updatedAt: now,
+          ),
+        );
   }
 
   Future<void> addLinksModuleWithTitle({
@@ -174,25 +170,28 @@ class IdeaRepository {
     final sortOrder = await _nextModuleSortOrder(ideaId);
     final trimmed = title.trim();
 
-    await db.into(db.ideaModules).insert(
-      IdeaModulesCompanion.insert(
-        id: uuid.v4(),
-        ideaId: ideaId,
-        type: IdeaModuleType.links,
-        title: trimmed.isEmpty ? 'Neue Links' : trimmed,
-        sortOrder: Value(sortOrder),
-        createdAt: now,
-        updatedAt: now,
-      ),
-    );
+    await db
+        .into(db.ideaModules)
+        .insert(
+          IdeaModulesCompanion.insert(
+            id: uuid.v4(),
+            ideaId: ideaId,
+            type: IdeaModuleType.links,
+            title: trimmed.isEmpty ? 'Neue Links' : trimmed,
+            sortOrder: Value(sortOrder),
+            createdAt: now,
+            updatedAt: now,
+          ),
+        );
   }
 
   Future<void> renameModule(String moduleId, String title) async {
     final trimmed = title.trim();
     if (trimmed.isEmpty) return;
 
-    await (db.update(db.ideaModules)..where((tbl) => tbl.id.equals(moduleId)))
-        .write(
+    await (db.update(
+      db.ideaModules,
+    )..where((tbl) => tbl.id.equals(moduleId))).write(
       IdeaModulesCompanion(
         title: Value(trimmed),
         updatedAt: Value(DateTime.now()),
@@ -215,16 +214,18 @@ class IdeaRepository {
     final sortOrder = await _nextChecklistItemSortOrder(moduleId);
     final trimmed = content.trim();
 
-    await db.into(db.ideaChecklistItems).insert(
-      IdeaChecklistItemsCompanion.insert(
-        id: uuid.v4(),
-        moduleId: moduleId,
-        content: trimmed.isEmpty ? 'Neuer Punkt' : trimmed,
-        sortOrder: Value(sortOrder),
-        createdAt: now,
-        updatedAt: now,
-      ),
-    );
+    await db
+        .into(db.ideaChecklistItems)
+        .insert(
+          IdeaChecklistItemsCompanion.insert(
+            id: uuid.v4(),
+            moduleId: moduleId,
+            content: trimmed.isEmpty ? 'Neuer Punkt' : trimmed,
+            sortOrder: Value(sortOrder),
+            createdAt: now,
+            updatedAt: now,
+          ),
+        );
   }
 
   Future<void> updateChecklistItem({
@@ -235,9 +236,9 @@ class IdeaRepository {
     final trimmed = content.trim();
     if (trimmed.isEmpty) return;
 
-    await (db.update(db.ideaChecklistItems)
-          ..where((tbl) => tbl.id.equals(itemId)))
-        .write(
+    await (db.update(
+      db.ideaChecklistItems,
+    )..where((tbl) => tbl.id.equals(itemId))).write(
       IdeaChecklistItemsCompanion(
         content: Value(trimmed),
         isDone: Value(isDone),
@@ -250,9 +251,9 @@ class IdeaRepository {
     required String itemId,
     required bool isDone,
   }) async {
-    await (db.update(db.ideaChecklistItems)
-          ..where((tbl) => tbl.id.equals(itemId)))
-        .write(
+    await (db.update(
+      db.ideaChecklistItems,
+    )..where((tbl) => tbl.id.equals(itemId))).write(
       IdeaChecklistItemsCompanion(
         isDone: Value(isDone),
         updatedAt: Value(DateTime.now()),
@@ -261,9 +262,9 @@ class IdeaRepository {
   }
 
   Future<void> deleteChecklistItem(String itemId) async {
-    await (db.delete(db.ideaChecklistItems)
-          ..where((tbl) => tbl.id.equals(itemId)))
-        .go();
+    await (db.delete(
+      db.ideaChecklistItems,
+    )..where((tbl) => tbl.id.equals(itemId))).go();
   }
 
   Future<void> addLinkItem({
@@ -274,19 +275,21 @@ class IdeaRepository {
     final now = DateTime.now();
     final sortOrder = await _nextLinkItemSortOrder(moduleId);
 
-    await db.into(db.ideaLinkItems).insert(
-      IdeaLinkItemsCompanion.insert(
-        id: uuid.v4(),
-        moduleId: moduleId,
-        url: url.trim(),
-        label: Value(
-          label == null || label.trim().isEmpty ? null : label.trim(),
-        ),
-        sortOrder: Value(sortOrder),
-        createdAt: now,
-        updatedAt: now,
-      ),
-    );
+    await db
+        .into(db.ideaLinkItems)
+        .insert(
+          IdeaLinkItemsCompanion.insert(
+            id: uuid.v4(),
+            moduleId: moduleId,
+            url: url.trim(),
+            label: Value(
+              label == null || label.trim().isEmpty ? null : label.trim(),
+            ),
+            sortOrder: Value(sortOrder),
+            createdAt: now,
+            updatedAt: now,
+          ),
+        );
   }
 
   Future<void> updateLinkItem({
@@ -299,8 +302,9 @@ class IdeaRepository {
 
     if (trimmedUrl.isEmpty) return;
 
-    await (db.update(db.ideaLinkItems)..where((tbl) => tbl.id.equals(itemId)))
-        .write(
+    await (db.update(
+      db.ideaLinkItems,
+    )..where((tbl) => tbl.id.equals(itemId))).write(
       IdeaLinkItemsCompanion(
         url: Value(trimmedUrl),
         label: Value(
@@ -312,29 +316,31 @@ class IdeaRepository {
   }
 
   Future<void> deleteLinkItem(String itemId) async {
-    await (db.delete(db.ideaLinkItems)..where((tbl) => tbl.id.equals(itemId)))
-        .go();
+    await (db.delete(
+      db.ideaLinkItems,
+    )..where((tbl) => tbl.id.equals(itemId))).go();
   }
 
   Future<void> deleteModule(String moduleId) async {
     await db.transaction(() async {
-      await (db.delete(db.ideaChecklistItems)
-            ..where((tbl) => tbl.moduleId.equals(moduleId)))
-          .go();
+      await (db.delete(
+        db.ideaChecklistItems,
+      )..where((tbl) => tbl.moduleId.equals(moduleId))).go();
 
-      await (db.delete(db.ideaLinkItems)
-            ..where((tbl) => tbl.moduleId.equals(moduleId)))
-          .go();
+      await (db.delete(
+        db.ideaLinkItems,
+      )..where((tbl) => tbl.moduleId.equals(moduleId))).go();
 
-      await (db.delete(db.ideaModules)..where((tbl) => tbl.id.equals(moduleId)))
-          .go();
+      await (db.delete(
+        db.ideaModules,
+      )..where((tbl) => tbl.id.equals(moduleId))).go();
     });
   }
 
   Future<int> _nextModuleSortOrder(String ideaId) async {
-    final modules = await (db.select(db.ideaModules)
-          ..where((tbl) => tbl.ideaId.equals(ideaId)))
-        .get();
+    final modules = await (db.select(
+      db.ideaModules,
+    )..where((tbl) => tbl.ideaId.equals(ideaId))).get();
 
     if (modules.isEmpty) return 0;
 
@@ -346,9 +352,9 @@ class IdeaRepository {
   }
 
   Future<int> _nextChecklistItemSortOrder(String moduleId) async {
-    final items = await (db.select(db.ideaChecklistItems)
-          ..where((tbl) => tbl.moduleId.equals(moduleId)))
-        .get();
+    final items = await (db.select(
+      db.ideaChecklistItems,
+    )..where((tbl) => tbl.moduleId.equals(moduleId))).get();
 
     if (items.isEmpty) return 0;
 
@@ -360,9 +366,9 @@ class IdeaRepository {
   }
 
   Future<int> _nextLinkItemSortOrder(String moduleId) async {
-    final items = await (db.select(db.ideaLinkItems)
-          ..where((tbl) => tbl.moduleId.equals(moduleId)))
-        .get();
+    final items = await (db.select(
+      db.ideaLinkItems,
+    )..where((tbl) => tbl.moduleId.equals(moduleId))).get();
 
     if (items.isEmpty) return 0;
 
@@ -371,5 +377,108 @@ class IdeaRepository {
         .reduce((a, b) => a > b ? a : b);
 
     return maxSortOrder + 1;
+  }
+
+  Future<void> reorderModules({
+    required List<IdeaModule> modules,
+    required int oldIndex,
+    required int newIndex,
+  }) async {
+    if (oldIndex < 0 || oldIndex >= modules.length) return;
+    if (newIndex < 0 || newIndex > modules.length) return;
+
+    final reordered = List<IdeaModule>.from(modules);
+
+    if (newIndex > oldIndex) {
+      newIndex -= 1;
+    }
+
+    final moved = reordered.removeAt(oldIndex);
+    reordered.insert(newIndex, moved);
+
+    await db.batch((batch) {
+      for (var i = 0; i < reordered.length; i++) {
+        final module = reordered[i];
+
+        batch.update(
+          db.ideaModules,
+          IdeaModulesCompanion(
+            sortOrder: Value(i),
+            updatedAt: Value(DateTime.now()),
+          ),
+          where: (tbl) => tbl.id.equals(module.id),
+        );
+      }
+    });
+  }
+
+    Future<void> reorderChecklistItems({
+    required List<IdeaChecklistItem> items,
+    required int oldIndex,
+    required int newIndex,
+  }) async {
+    if (oldIndex < 0 || oldIndex >= items.length) return;
+    if (newIndex < 0 || newIndex > items.length) return;
+
+    final reordered = List<IdeaChecklistItem>.from(items);
+
+    if (newIndex > oldIndex) {
+      newIndex -= 1;
+    }
+
+    final moved = reordered.removeAt(oldIndex);
+    reordered.insert(newIndex, moved);
+
+    final now = DateTime.now();
+
+    await db.batch((batch) {
+      for (var i = 0; i < reordered.length; i++) {
+        final item = reordered[i];
+
+        batch.update(
+          db.ideaChecklistItems,
+          IdeaChecklistItemsCompanion(
+            sortOrder: Value(i),
+            updatedAt: Value(now),
+          ),
+          where: (tbl) => tbl.id.equals(item.id),
+        );
+      }
+    });
+  }
+
+    Future<void> reorderLinkItems({
+    required List<IdeaLinkItem> items,
+    required int oldIndex,
+    required int newIndex,
+  }) async {
+    if (oldIndex < 0 || oldIndex >= items.length) return;
+    if (newIndex < 0 || newIndex > items.length) return;
+
+    final reordered = List<IdeaLinkItem>.from(items);
+
+    if (newIndex > oldIndex) {
+      newIndex -= 1;
+    }
+
+    final moved = reordered.removeAt(oldIndex);
+    reordered.insert(newIndex, moved);
+
+    final now = DateTime.now();
+
+    await db.batch((batch) {
+      for (var i = 0; i < reordered.length; i++) {
+        final item = reordered[i];
+
+        batch.update(
+          db.ideaLinkItems,
+          IdeaLinkItemsCompanion(
+            sortOrder: Value(i),
+            updatedAt: Value(now),
+          ),
+          where: (tbl) => tbl.id.equals(item.id),
+        );
+      }
+    });
   }
 }

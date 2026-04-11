@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:ideas_app/features/ideas/logic/providers.dart';
-import 'package:ideas_app/features/ideas/ui/widgets/idea_list_item.dart';
+import 'package:ideas_app/features/ideas/presentation/widgets/idea_list_item.dart';
 
 class ArchivePage extends ConsumerWidget {
   const ArchivePage({super.key});

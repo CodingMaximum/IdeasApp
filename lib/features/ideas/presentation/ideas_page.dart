@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:ideas_app/features/ideas/ui/widgets/idea_list_item.dart';
+import 'package:ideas_app/features/ideas/presentation/widgets/idea_list_item.dart';
 import 'package:ideas_app/features/settings/settings_page.dart';
 import 'package:ideas_app/features/archive/ui/archive_page.dart';
 import '../logic/providers.dart';
