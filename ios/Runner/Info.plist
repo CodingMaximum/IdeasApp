@@ -45,5 +45,9 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>sample app for idea management</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>sample app for idea management</string>	
 </dict>
 </plist>

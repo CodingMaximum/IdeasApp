@@ -1,6 +1,12 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:ideas_app/data/db/app_database.dart';
 import 'package:ideas_app/data/repositories/idea_repository.dart';
+import 'package:ideas_app/features/ideas/application/quick_capture_controller.dart';
+import 'package:ideas_app/features/ideas/application/quick_capture_state.dart';
+import 'package:ideas_app/features/ideas/data/speech/speech_recognition_service.dart';
+import 'package:ideas_app/features/ideas/data/speech/speech_to_text_service.dart';
+import 'package:ideas_app/core/services/speech_settings_service.dart';
+import 'package:ideas_app/features/ideas/data/speech/speech_locale_option.dart';
 
 final userIdProvider = Provider<String>((ref) => throw UnimplementedError());
 
@@ -65,4 +71,36 @@ final ideaLinkItemsProvider =
     StreamProvider.family<List<IdeaLinkItem>, String>((ref, moduleId) {
   final repo = ref.watch(ideaRepositoryProvider);
   return repo.watchLinkItems(moduleId);
+});
+
+final speechRecognitionServiceProvider = Provider<SpeechRecognitionService>((ref) {
+  return SpeechToTextService();
+});
+
+final quickCaptureControllerProvider =
+    NotifierProvider<QuickCaptureController, QuickCaptureState>(
+  QuickCaptureController.new,
+);
+final speechSettingsServiceProvider = Provider<SpeechSettingsService>((ref) {
+  return SpeechSettingsService();
+});
+
+final selectedSpeechLocaleIdProvider = FutureProvider<String?>((ref) async {
+  final service = ref.watch(speechSettingsServiceProvider);
+  return service.getSpeechLocaleId();
+});
+
+final availableSpeechLocalesProvider =
+    FutureProvider<List<SpeechLocaleOption>>((ref) async {
+  final speech = ref.watch(speechRecognitionServiceProvider);
+
+  final initialized = await speech.initialize(
+    onResult: (_, __) {},
+    onStatus: (_) {},
+    onError: (_) {},
+  );
+
+  if (!initialized) return [];
+
+  return speech.getAvailableLocales();
 });

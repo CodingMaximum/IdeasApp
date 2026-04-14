@@ -412,7 +412,7 @@ class IdeaRepository {
     });
   }
 
-    Future<void> reorderChecklistItems({
+  Future<void> reorderChecklistItems({
     required List<IdeaChecklistItem> items,
     required int oldIndex,
     required int newIndex,
@@ -447,7 +447,7 @@ class IdeaRepository {
     });
   }
 
-    Future<void> reorderLinkItems({
+  Future<void> reorderLinkItems({
     required List<IdeaLinkItem> items,
     required int oldIndex,
     required int newIndex,
@@ -472,13 +472,62 @@ class IdeaRepository {
 
         batch.update(
           db.ideaLinkItems,
-          IdeaLinkItemsCompanion(
-            sortOrder: Value(i),
-            updatedAt: Value(now),
-          ),
+          IdeaLinkItemsCompanion(sortOrder: Value(i), updatedAt: Value(now)),
           where: (tbl) => tbl.id.equals(item.id),
         );
       }
     });
+  }
+
+  Future<void> createIdeaFromCapture({
+    required String description,
+    String? title,
+  }) async {
+    final cleanDescription = description.trim();
+    if (cleanDescription.isEmpty) return;
+
+    final now = DateTime.now();
+    final resolvedTitle = _buildFallbackTitle(
+      explicitTitle: title,
+      description: cleanDescription,
+    );
+
+    await db.insertIdea(
+      IdeasCompanion(
+        id: Value(uuid.v4()),
+        title: Value(resolvedTitle),
+        description: Value(cleanDescription),
+        statusId: const Value(SeedIds.planningStatus),
+        createdAt: Value(now),
+        updatedAt: Value(now),
+        createdBy: Value(userId),
+      ),
+    );
+  }
+
+  String _buildFallbackTitle({
+    String? explicitTitle,
+    required String description,
+  }) {
+    final cleanTitle = explicitTitle?.trim();
+    if (cleanTitle != null && cleanTitle.isNotEmpty) {
+      return cleanTitle;
+    }
+
+    final normalized = description
+        .replaceAll('\n', ' ')
+        .replaceAll(RegExp(r'\s+'), ' ')
+        .trim();
+
+    if (normalized.isEmpty) {
+      return 'Neue Idee';
+    }
+
+    const maxLength = 60;
+    if (normalized.length <= maxLength) {
+      return normalized;
+    }
+
+    return '${normalized.substring(0, maxLength).trim()}…';
   }
 }

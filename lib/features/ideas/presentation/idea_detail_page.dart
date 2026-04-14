@@ -525,31 +525,33 @@ class _AddModuleBottomSheetState extends ConsumerState<_AddModuleBottomSheet> {
                 style: Theme.of(context).textTheme.bodyMedium,
               ),
               const SizedBox(height: 16),
-              RadioListTile<IdeaModuleType>(
-                contentPadding: EdgeInsets.zero,
-                value: IdeaModuleType.checklist,
+              RadioGroup<IdeaModuleType>(
                 groupValue: _selectedType,
                 onChanged: (value) {
                   if (value == null) return;
+
                   setState(() {
                     _selectedType = value;
                   });
                 },
-                title: const Text('Checkliste'),
-                subtitle: const Text('Mehrere Punkte sammeln und abhaken'),
-              ),
-              RadioListTile<IdeaModuleType>(
-                contentPadding: EdgeInsets.zero,
-                value: IdeaModuleType.links,
-                groupValue: _selectedType,
-                onChanged: (value) {
-                  if (value == null) return;
-                  setState(() {
-                    _selectedType = value;
-                  });
-                },
-                title: const Text('Links'),
-                subtitle: const Text('URLs und Quellen sammeln'),
+                child: Column(
+                  children: [
+                    RadioListTile<IdeaModuleType>(
+                      contentPadding: EdgeInsets.zero,
+                      value: IdeaModuleType.checklist,
+                      title: const Text('Checkliste'),
+                      subtitle: const Text(
+                        'Mehrere Punkte sammeln und abhaken',
+                      ),
+                    ),
+                    RadioListTile<IdeaModuleType>(
+                      contentPadding: EdgeInsets.zero,
+                      value: IdeaModuleType.links,
+                      title: const Text('Links'),
+                      subtitle: const Text('URLs und Quellen sammeln'),
+                    ),
+                  ],
+                ),
               ),
               const SizedBox(height: 12),
               TextField(
