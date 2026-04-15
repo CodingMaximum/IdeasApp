@@ -1,12 +1,17 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:ideas_app/data/db/app_database.dart';
-import 'package:ideas_app/data/repositories/idea_repository.dart';
+import 'package:ideas_app/data/repositories/local/drift_idea_repository.dart';
 import 'package:ideas_app/features/ideas/application/quick_capture_controller.dart';
 import 'package:ideas_app/features/ideas/application/quick_capture_state.dart';
 import 'package:ideas_app/features/ideas/data/speech/speech_recognition_service.dart';
 import 'package:ideas_app/features/ideas/data/speech/speech_to_text_service.dart';
 import 'package:ideas_app/core/services/speech_settings_service.dart';
 import 'package:ideas_app/features/ideas/data/speech/speech_locale_option.dart';
+import 'package:ideas_app/data/repositories/idea_repository_interface.dart';
+import 'package:ideas_app/data/repositories/local/drift_idea_repository.dart';
+import 'package:ideas_app/core/utils/platform.dart';
+import 'package:ideas_app/data/repositories/remote/supabase_idea_repository.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 final userIdProvider = Provider<String>((ref) => throw UnimplementedError());
 
@@ -16,10 +21,14 @@ final databaseProvider = Provider<AppDatabase>((ref) {
   return db;
 });
 
-final ideaRepositoryProvider = Provider<IdeaRepository>((ref) {
-  final db = ref.watch(databaseProvider);
+final ideaRepositoryProvider = Provider<IIdeaRepository>((ref) {
   final userId = ref.watch(userIdProvider);
-  return IdeaRepository(db, userId);
+
+  if (usesRemoteRepository) {
+    return SupabaseIdeaRepository(Supabase.instance.client, userId);
+  }
+
+  return DriftIdeaRepository(ref.watch(databaseProvider), userId);
 });
 
 final ideasProvider = StreamProvider<List<Idea>>((ref) {

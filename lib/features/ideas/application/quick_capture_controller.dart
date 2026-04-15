@@ -1,12 +1,12 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:ideas_app/data/repositories/idea_repository.dart';
+import 'package:ideas_app/data/repositories/idea_repository_interface.dart';
 import 'package:ideas_app/features/ideas/application/quick_capture_state.dart';
 import 'package:ideas_app/features/ideas/data/speech/speech_recognition_service.dart';
 import 'package:ideas_app/features/ideas/logic/providers.dart';
 import 'package:ideas_app/core/services/speech_settings_service.dart';
 
 class QuickCaptureController extends Notifier<QuickCaptureState> {
-  late final IdeaRepository _repo;
+late final IIdeaRepository _repo;
   late final SpeechRecognitionService _speech;
   late final SpeechSettingsService _speechSettings;
   @override

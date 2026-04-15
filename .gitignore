@@ -41,3 +41,6 @@
 # Databases (if local copies exist)
 **/*.db
 **/*.sqlite
+
+# Secrets / Config
+lib/core/config/supabase_config.dart

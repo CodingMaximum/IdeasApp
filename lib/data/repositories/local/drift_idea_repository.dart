@@ -2,15 +2,16 @@ import 'package:drift/drift.dart';
 import 'package:ideas_app/data/db/seed_ids.dart';
 import 'package:ideas_app/data/enums/idea_module_type.dart';
 import 'package:uuid/uuid.dart';
+import 'package:ideas_app/data/repositories/idea_repository_interface.dart';
 
-import '../db/app_database.dart';
+import '../../db/app_database.dart';
 
-class IdeaRepository {
+class DriftIdeaRepository implements IIdeaRepository {
   final AppDatabase db;
   final String userId;
   final uuid = const Uuid();
 
-  IdeaRepository(this.db, this.userId);
+  DriftIdeaRepository(this.db, this.userId);
 
   Future<void> createIdea(String title) async {
     final now = DateTime.now();
