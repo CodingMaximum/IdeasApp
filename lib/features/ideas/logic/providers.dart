@@ -11,26 +11,24 @@ import 'package:ideas_app/data/repositories/idea_repository_interface.dart';
 import 'package:ideas_app/core/utils/platform.dart';
 import 'package:ideas_app/data/repositories/remote/supabase_idea_repository.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:ideas_app/data/repositories/repository_factory.dart';
 
 final userIdProvider = Provider<String>((ref) => throw UnimplementedError());
 
-final databaseProvider = Provider<AppDatabase?>((ref) {
-  if (usesRemoteRepository) return null; // Web → kein Drift
-  final db = AppDatabase();
-  ref.onDispose(db.close);
+final databaseProvider = Provider<dynamic>((ref) {
+  if (usesRemoteRepository) return null;
+  final db = createDatabase();
+  ref.onDispose(() => (db as AppDatabase).close());
   return db;
 });
 
 final ideaRepositoryProvider = Provider<IIdeaRepository>((ref) {
   final userId = ref.watch(userIdProvider);
-
   if (usesRemoteRepository) {
     return SupabaseIdeaRepository(Supabase.instance.client, userId);
   }
-
-  // db ist hier garantiert non-null, da usesRemoteRepository == false
-  final db = ref.watch(databaseProvider)!;
-  return DriftIdeaRepository(db, userId);
+  final db = ref.watch(databaseProvider);
+  return createLocalRepository(db, userId);
 });
 
 final ideasProvider = StreamProvider<List<Idea>>((ref) {
@@ -66,32 +64,37 @@ final archivedIdeasCountProvider = Provider<int>((ref) {
   );
 });
 
-final ideaModulesProvider =
-    StreamProvider.family<List<IdeaModule>, String>((ref, ideaId) {
+final ideaModulesProvider = StreamProvider.family<List<IdeaModule>, String>((
+  ref,
+  ideaId,
+) {
   final repo = ref.watch(ideaRepositoryProvider);
   return repo.watchModulesForIdea(ideaId);
 });
 
 final ideaChecklistItemsProvider =
     StreamProvider.family<List<IdeaChecklistItem>, String>((ref, moduleId) {
-  final repo = ref.watch(ideaRepositoryProvider);
-  return repo.watchChecklistItems(moduleId);
-});
+      final repo = ref.watch(ideaRepositoryProvider);
+      return repo.watchChecklistItems(moduleId);
+    });
 
-final ideaLinkItemsProvider =
-    StreamProvider.family<List<IdeaLinkItem>, String>((ref, moduleId) {
-  final repo = ref.watch(ideaRepositoryProvider);
-  return repo.watchLinkItems(moduleId);
-});
+final ideaLinkItemsProvider = StreamProvider.family<List<IdeaLinkItem>, String>(
+  (ref, moduleId) {
+    final repo = ref.watch(ideaRepositoryProvider);
+    return repo.watchLinkItems(moduleId);
+  },
+);
 
-final speechRecognitionServiceProvider = Provider<SpeechRecognitionService>((ref) {
+final speechRecognitionServiceProvider = Provider<SpeechRecognitionService>((
+  ref,
+) {
   return SpeechToTextService();
 });
 
 final quickCaptureControllerProvider =
     NotifierProvider<QuickCaptureController, QuickCaptureState>(
-  QuickCaptureController.new,
-);
+      QuickCaptureController.new,
+    );
 final speechSettingsServiceProvider = Provider<SpeechSettingsService>((ref) {
   return SpeechSettingsService();
 });
@@ -101,17 +104,18 @@ final selectedSpeechLocaleIdProvider = FutureProvider<String?>((ref) async {
   return service.getSpeechLocaleId();
 });
 
-final availableSpeechLocalesProvider =
-    FutureProvider<List<SpeechLocaleOption>>((ref) async {
-  final speech = ref.watch(speechRecognitionServiceProvider);
+final availableSpeechLocalesProvider = FutureProvider<List<SpeechLocaleOption>>(
+  (ref) async {
+    final speech = ref.watch(speechRecognitionServiceProvider);
 
-  final initialized = await speech.initialize(
-    onResult: (_, __) {},
-    onStatus: (_) {},
-    onError: (_) {},
-  );
+    final initialized = await speech.initialize(
+      onResult: (_, __) {},
+      onStatus: (_) {},
+      onError: (_) {},
+    );
 
-  if (!initialized) return [];
+    if (!initialized) return [];
 
-  return speech.getAvailableLocales();
-});
+    return speech.getAvailableLocales();
+  },
+);
