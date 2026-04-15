@@ -1,11 +1,17 @@
-import 'package:ideas_app/data/db/app_database.dart';
+import 'package:ideas_app/domain/models/idea_model.dart';
+import 'package:ideas_app/domain/models/category_model.dart';
+import 'package:ideas_app/domain/models/idea_status_model.dart';
+import 'package:ideas_app/domain/models/idea_module_model.dart';
+import 'package:ideas_app/domain/models/idea_checklist_item_model.dart';
+import 'package:ideas_app/domain/models/idea_link_item_model.dart';
 
+// ignore_for_file: one_member_abstracts
 abstract class IIdeaRepository {
-  // Ideas
-  Stream<List<Idea>> watchIdeas();
-  Stream<List<Idea>> watchArchivedIdeas();
-  Stream<Idea?> watchIdeaById(String id);
-  Future<Idea?> getIdeaById(String id);
+  // ── Ideas ──────────────────────────────────────────────────────────────────
+  Stream<List<IdeaModel>> watchIdeas();
+  Stream<List<IdeaModel>> watchArchivedIdeas();
+  Stream<IdeaModel?> watchIdeaById(String id);
+  Future<IdeaModel?> getIdeaById(String id);
 
   Future<void> createIdea(String title);
   Future<void> createIdeaFromCapture({
@@ -27,12 +33,12 @@ abstract class IIdeaRepository {
   Future<void> updateIdeaCategory(String id, String categoryId);
   Future<void> updateIdeaStatus(String id, String statusId);
 
-  // Categories & Statuses
-  Stream<List<Category>> watchCategories();
-  Stream<List<IdeaStatuse>> watchIdeaStatuses();
+  // ── Categories & Statuses ──────────────────────────────────────────────────
+  Stream<List<CategoryModel>> watchCategories();
+  Stream<List<IdeaStatusModel>> watchIdeaStatuses();
 
-  // Modules
-  Stream<List<IdeaModule>> watchModulesForIdea(String ideaId);
+  // ── Modules ────────────────────────────────────────────────────────────────
+  Stream<List<IdeaModuleModel>> watchModulesForIdea(String ideaId);
   Future<void> addChecklistModule(String ideaId);
   Future<void> addLinksModule(String ideaId);
   Future<void> addChecklistModuleWithTitle({
@@ -46,13 +52,13 @@ abstract class IIdeaRepository {
   Future<void> renameModule(String moduleId, String title);
   Future<void> deleteModule(String moduleId);
   Future<void> reorderModules({
-    required List<IdeaModule> modules,
+    required List<IdeaModuleModel> modules,
     required int oldIndex,
     required int newIndex,
   });
 
-  // Checklist Items
-  Stream<List<IdeaChecklistItem>> watchChecklistItems(String moduleId);
+  // ── Checklist Items ────────────────────────────────────────────────────────
+  Stream<List<IdeaChecklistItemModel>> watchChecklistItems(String moduleId);
   Future<void> addChecklistItem(String moduleId);
   Future<void> addChecklistItemWithContent({
     required String moduleId,
@@ -69,13 +75,13 @@ abstract class IIdeaRepository {
   });
   Future<void> deleteChecklistItem(String itemId);
   Future<void> reorderChecklistItems({
-    required List<IdeaChecklistItem> items,
+    required List<IdeaChecklistItemModel> items,
     required int oldIndex,
     required int newIndex,
   });
 
-  // Link Items
-  Stream<List<IdeaLinkItem>> watchLinkItems(String moduleId);
+  // ── Link Items ─────────────────────────────────────────────────────────────
+  Stream<List<IdeaLinkItemModel>> watchLinkItems(String moduleId);
   Future<void> addLinkItem({
     required String moduleId,
     required String url,
@@ -88,7 +94,7 @@ abstract class IIdeaRepository {
   });
   Future<void> deleteLinkItem(String itemId);
   Future<void> reorderLinkItems({
-    required List<IdeaLinkItem> items,
+    required List<IdeaLinkItemModel> items,
     required int oldIndex,
     required int newIndex,
   });
