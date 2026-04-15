@@ -8,14 +8,14 @@ import 'package:ideas_app/features/ideas/data/speech/speech_to_text_service.dart
 import 'package:ideas_app/core/services/speech_settings_service.dart';
 import 'package:ideas_app/features/ideas/data/speech/speech_locale_option.dart';
 import 'package:ideas_app/data/repositories/idea_repository_interface.dart';
-import 'package:ideas_app/data/repositories/local/drift_idea_repository.dart';
 import 'package:ideas_app/core/utils/platform.dart';
 import 'package:ideas_app/data/repositories/remote/supabase_idea_repository.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 final userIdProvider = Provider<String>((ref) => throw UnimplementedError());
 
-final databaseProvider = Provider<AppDatabase>((ref) {
+final databaseProvider = Provider<AppDatabase?>((ref) {
+  if (usesRemoteRepository) return null; // Web → kein Drift
   final db = AppDatabase();
   ref.onDispose(db.close);
   return db;
@@ -28,7 +28,9 @@ final ideaRepositoryProvider = Provider<IIdeaRepository>((ref) {
     return SupabaseIdeaRepository(Supabase.instance.client, userId);
   }
 
-  return DriftIdeaRepository(ref.watch(databaseProvider), userId);
+  // db ist hier garantiert non-null, da usesRemoteRepository == false
+  final db = ref.watch(databaseProvider)!;
+  return DriftIdeaRepository(db, userId);
 });
 
 final ideasProvider = StreamProvider<List<Idea>>((ref) {

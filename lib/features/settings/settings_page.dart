@@ -61,6 +61,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
 
     try {
       final db = ref.read(databaseProvider);
+      if (db == null) return; // Web hat keine lokale DB
       await db.resetDatabaseContent();
 
       if (!context.mounted) return;
@@ -96,6 +97,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
 
     try {
       final db = ref.read(databaseProvider);
+      if (db == null) return; // Web hat keine lokale DB
       await db.close();
 
       final dbFolder = await getApplicationDocumentsDirectory();
