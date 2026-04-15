@@ -22,12 +22,12 @@ class _QuickCaptureBarState extends ConsumerState<QuickCaptureBar> {
 
     _controller = TextEditingController();
     _focusNode = FocusNode();
-
     _controller.addListener(_onTextChanged);
 
     _subscription = ref.listenManual<QuickCaptureState>(
       quickCaptureControllerProvider,
       (previous, next) {
+        // Speech-Text ins Feld übernehmen
         if (_controller.text != next.text) {
           _isApplyingExternalText = true;
           _controller.value = TextEditingValue(
@@ -37,11 +37,13 @@ class _QuickCaptureBarState extends ConsumerState<QuickCaptureBar> {
           _isApplyingExternalText = false;
         }
 
+        // Nach erfolgreichem Speichern Fokus zurück
         final wasSaving = previous?.isSaving ?? false;
         if (wasSaving && !next.isSaving && next.text.isEmpty && mounted) {
           _focusNode.requestFocus();
         }
 
+        // Fehler als SnackBar
         final errorChanged = previous?.errorMessage != next.errorMessage;
         if (errorChanged &&
             next.errorMessage != null &&
@@ -59,19 +61,19 @@ class _QuickCaptureBarState extends ConsumerState<QuickCaptureBar> {
       },
     );
 
+    // Speech sofort im Hintergrund initialisieren — kein await, damit UI
+    // nicht blockiert wird und der erste Mic-Tap ohne Verzögerung reagiert.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      _focusNode.requestFocus();
       ref.read(quickCaptureControllerProvider.notifier).initializeSpeech();
     });
   }
 
   void _onTextChanged() {
     if (_isApplyingExternalText) return;
-
-    ref.read(quickCaptureControllerProvider.notifier).updateText(
-          _controller.text,
-        );
+    ref
+        .read(quickCaptureControllerProvider.notifier)
+        .updateText(_controller.text);
   }
 
   @override
@@ -84,122 +86,205 @@ class _QuickCaptureBarState extends ConsumerState<QuickCaptureBar> {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, ) {
     final state = ref.watch(quickCaptureControllerProvider);
     final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
+    final isListening = state.isListening;
+    final isSpeechReady = state.isSpeechInitialized && state.speechAvailable;
 
     return Padding(
-      padding: const EdgeInsets.all(12),
-      child: Column(
-        children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
+      padding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
+      child: Card(
+        elevation: 2,
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Expanded(
-                child: TextField(
-                  controller: _controller,
-                  focusNode: _focusNode,
-                  minLines: 2,
-                  maxLines: 5,
-                  textInputAction: TextInputAction.newline,
-                  decoration: const InputDecoration(
-                    hintText: 'Sprich oder schreibe deine Idee…',
-                    border: OutlineInputBorder(),
-                    alignLabelWithHint: true,
-                    labelText: 'Beschreibung',
-                  ),
-                  onTap: () {
-                    ref
-                        .read(quickCaptureControllerProvider.notifier)
-                        .clearError();
-                  },
-                  onTapOutside: (_) => _focusNode.unfocus(),
+              // Header
+              Text(
+                'Neue Idee',
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w600,
                 ),
               ),
-              const SizedBox(width: 8),
-              Column(
-                children: [
-                  Tooltip(
-                    message: state.isListening
-                        ? 'Aufnahme stoppen'
-                        : 'Spracheingabe starten',
-                    child: FilledButton.tonalIcon(
-                      onPressed: state.isSaving
-                          ? null
-                          : () async {
-                              await ref
-                                  .read(
-                                    quickCaptureControllerProvider.notifier,
-                                  )
-                                  .toggleListening();
-                            },
-                      icon: Icon(
-                        state.isListening ? Icons.mic : Icons.mic_none,
+              const SizedBox(height: 12),
+
+              // Textfeld + Mic-Button nebeneinander
+              IntrinsicHeight(
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    // Mic-IconButton — schmal, volle Höhe des Textfelds
+                    _MicButton(
+                      isListening: isListening,
+                      isReady: isSpeechReady,
+                      isInitializing: !state.isSpeechInitialized,
+                      isSaving: state.isSaving,
+                      onTap: () async {
+                        await ref
+                            .read(quickCaptureControllerProvider.notifier)
+                            .toggleListening();
+                      },
+                    ),
+                    const SizedBox(width: 10),
+
+                    // Textfeld — Rest der Breite
+                    Expanded(
+                      child: TextField(
+                        controller: _controller,
+                        focusNode: _focusNode,
+                        minLines: 4,
+                        maxLines: 8,
+                        textInputAction: TextInputAction.newline,
+                        decoration: InputDecoration(
+                          hintText: isSpeechReady
+                              ? 'Tippe oder nutze das Mikrofon …'
+                              : 'Beschreibe deine Idee …',
+                          border: const OutlineInputBorder(),
+                          alignLabelWithHint: true,
+                          isDense: false,
+                        ),
+                        onTap: () {
+                          ref
+                              .read(quickCaptureControllerProvider.notifier)
+                              .clearError();
+                        },
+                        onTapOutside: (_) => _focusNode.unfocus(),
                       ),
-                      label: Text(state.isListening ? 'Stop' : 'Sprache'),
                     ),
+                  ],
+                ),
+              ),
+
+              // Statuszeile
+              if (_statusText(state).isNotEmpty) ...[
+                const SizedBox(height: 6),
+                Text(
+                  _statusText(state),
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: isListening
+                        ? colorScheme.primary
+                        : colorScheme.onSurfaceVariant,
                   ),
-                  const SizedBox(height: 8),
-                  Tooltip(
-                    message: 'Idee speichern',
-                    child: FilledButton.icon(
-                      onPressed: state.canSubmit
-                          ? () async {
-                              await ref
-                                  .read(
-                                    quickCaptureControllerProvider.notifier,
-                                  )
-                                  .submit();
-                            }
-                          : null,
-                      icon: state.isSaving
-                          ? const SizedBox(
-                              width: 16,
-                              height: 16,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
-                          : const Icon(Icons.arrow_circle_right_outlined),
-                      label: const Text('Speichern'),
-                    ),
-                  ),
-                ],
+                ),
+              ],
+
+              const SizedBox(height: 12),
+
+              // Hinzufügen-Button
+              FilledButton.icon(
+                onPressed: state.canSubmit
+                    ? () async {
+                        await ref
+                            .read(quickCaptureControllerProvider.notifier)
+                            .submit();
+                      }
+                    : null,
+                icon: state.isSaving
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      )
+                    : const Icon(Icons.add),
+                label:
+                    Text(state.isSaving ? 'Wird gespeichert …' : 'Hinzufügen'),
               ),
             ],
           ),
-          const SizedBox(height: 8),
-          Align(
-            alignment: Alignment.centerLeft,
-            child: Text(
-              _buildStatusText(state),
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: state.errorMessage != null
-                    ? theme.colorScheme.error
-                    : theme.textTheme.bodySmall?.color,
-              ),
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }
 
-  String _buildStatusText(QuickCaptureState state) {
-    if (state.isSaving) {
-      return 'Idee wird gespeichert…';
-    }
+  String _statusText(QuickCaptureState state) {
+    if (state.isSaving) return '';
+    if (!state.isSpeechInitialized) return 'Spracheingabe wird vorbereitet …';
+    if (!state.speechAvailable) return 'Spracheingabe nicht verfügbar';
+    if (state.isListening) return '🎙 Höre zu …';
+    return '';
+  }
+}
 
-    if (state.isListening) {
-      return 'Höre zu… die Beschreibung wird live gefüllt.';
-    }
+/// Schmaler Mic-Button mit voller Höhe des Textfelds.
+class _MicButton extends StatelessWidget {
+  final bool isListening;
+  final bool isReady;
+  final bool isInitializing;
+  final bool isSaving;
+  final VoidCallback onTap;
 
-    if (!state.isSpeechInitialized) {
-      return 'Spracheingabe wird vorbereitet…';
-    }
+  const _MicButton({
+    required this.isListening,
+    required this.isReady,
+    required this.isInitializing,
+    required this.isSaving,
+    required this.onTap,
+  });
 
-    if (!state.speechAvailable) {
-      return 'Spracheingabe ist hier nicht verfügbar. Du kannst normal tippen.';
-    }
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
 
-    return 'Du kannst schreiben oder Spracheingabe nutzen.';
+    final backgroundColor = isListening
+        ? colorScheme.primaryContainer
+        : colorScheme.surfaceContainerHighest;
+
+    final iconColor = isListening
+        ? colorScheme.onPrimaryContainer
+        : isReady
+            ? colorScheme.onSurfaceVariant
+            : colorScheme.outline;
+
+    return Tooltip(
+      message: isInitializing
+          ? 'Spracheingabe wird initialisiert …'
+          : !isReady
+              ? 'Spracheingabe nicht verfügbar'
+              : isListening
+                  ? 'Aufnahme stoppen'
+                  : 'Spracheingabe starten',
+      child: InkWell(
+        onTap: (isSaving || isInitializing || !isReady) ? null : onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          curve: Curves.easeOut,
+          width: 52,
+          decoration: BoxDecoration(
+            color: backgroundColor,
+            borderRadius: BorderRadius.circular(12),
+            border: isListening
+                ? Border.all(
+                    color: colorScheme.primary,
+                    width: 2,
+                  )
+                : null,
+          ),
+          child: Center(
+            child: isInitializing
+                ? SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: colorScheme.outline,
+                    ),
+                  )
+                : Icon(
+                    isListening ? Icons.mic : Icons.mic_none,
+                    color: iconColor,
+                    size: 26,
+                  ),
+          ),
+        ),
+      ),
+    );
   }
 }
