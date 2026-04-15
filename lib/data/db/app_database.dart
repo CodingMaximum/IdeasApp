@@ -1,6 +1,6 @@
 import 'package:drift/drift.dart';
 import 'package:ideas_app/data/db/seed_defaults.dart';
-import 'connection.dart';
+import 'connection.dart'; // conditional export – Web sieht nie FFI
 import 'tables/ideas.dart';
 import 'tables/categories.dart';
 import 'tables/idea_statuses.dart';
@@ -21,7 +21,8 @@ part 'app_database.g.dart';
   ],
 )
 class AppDatabase extends _$AppDatabase {
-  AppDatabase() : super(connect());
+  // openConnection() kommt via conditional export aus connection.dart
+  AppDatabase() : super(openConnection());
 
   @override
   int get schemaVersion => 2;
