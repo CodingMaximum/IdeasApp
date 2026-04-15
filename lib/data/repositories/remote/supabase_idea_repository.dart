@@ -1,7 +1,13 @@
-import 'package:ideas_app/data/db/app_database.dart';
 import 'package:ideas_app/data/db/seed_ids.dart';
-import 'package:ideas_app/data/enums/idea_module_type.dart';
+import 'package:ideas_app/domain/enums/idea_module_type.dart';
 import 'package:ideas_app/data/repositories/idea_repository_interface.dart';
+import 'package:ideas_app/domain/models/idea_model.dart';
+import 'package:ideas_app/domain/models/category_model.dart';
+import 'package:ideas_app/domain/models/idea_status_model.dart';
+import 'package:ideas_app/domain/models/idea_module_model.dart';
+import 'package:ideas_app/domain/models/idea_checklist_item_model.dart';
+import 'package:ideas_app/domain/models/idea_link_item_model.dart';
+import 'package:ideas_app/domain/models/sync_status.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:uuid/uuid.dart';
 
@@ -15,7 +21,7 @@ class SupabaseIdeaRepository implements IIdeaRepository {
   // ─── Ideas ───────────────────────────────────────────────
 
   @override
-  Stream<List<Idea>> watchIdeas() {
+  Stream<List<IdeaModel>> watchIdeas() {
     return _client
         .from('ideas')
         .stream(primaryKey: ['id'])
@@ -28,7 +34,7 @@ class SupabaseIdeaRepository implements IIdeaRepository {
   }
 
   @override
-  Stream<List<Idea>> watchArchivedIdeas() {
+  Stream<List<IdeaModel>> watchArchivedIdeas() {
     return _client
         .from('ideas')
         .stream(primaryKey: ['id'])
@@ -41,7 +47,7 @@ class SupabaseIdeaRepository implements IIdeaRepository {
   }
 
   @override
-  Stream<Idea?> watchIdeaById(String id) {
+  Stream<IdeaModel?> watchIdeaById(String id) {
     return _client
         .from('ideas')
         .stream(primaryKey: ['id'])
@@ -50,7 +56,7 @@ class SupabaseIdeaRepository implements IIdeaRepository {
   }
 
   @override
-  Future<Idea?> getIdeaById(String id) async {
+  Future<IdeaModel?> getIdeaById(String id) async {
     final res = await _client
         .from('ideas')
         .select()
@@ -167,7 +173,7 @@ class SupabaseIdeaRepository implements IIdeaRepository {
   // ─── Categories & Statuses ───────────────────────────────
 
   @override
-  Stream<List<Category>> watchCategories() {
+  Stream<List<CategoryModel>> watchCategories() {
     return _client
         .from('categories')
         .stream(primaryKey: ['id'])
@@ -176,7 +182,7 @@ class SupabaseIdeaRepository implements IIdeaRepository {
   }
 
   @override
-  Stream<List<IdeaStatuse>> watchIdeaStatuses() {
+  Stream<List<IdeaStatusModel>> watchIdeaStatuses() {
     return _client
         .from('idea_statuses')
         .stream(primaryKey: ['id'])
@@ -187,7 +193,7 @@ class SupabaseIdeaRepository implements IIdeaRepository {
   // ─── Modules ─────────────────────────────────────────────
 
   @override
-  Stream<List<IdeaModule>> watchModulesForIdea(String ideaId) {
+  Stream<List<IdeaModuleModel>> watchModulesForIdea(String ideaId) {
     return _client
         .from('idea_modules')
         .stream(primaryKey: ['id'])
@@ -252,21 +258,19 @@ class SupabaseIdeaRepository implements IIdeaRepository {
 
   @override
   Future<void> deleteModule(String moduleId) async {
-    // cascade delete via FK in Supabase — nur Modul löschen reicht
     await _client.from('idea_modules').delete().eq('id', moduleId);
   }
 
   @override
   Future<void> reorderModules({
-    required List<IdeaModule> modules,
+    required List<IdeaModuleModel> modules,
     required int oldIndex,
     required int newIndex,
   }) async {
-    final reordered = List<IdeaModule>.from(modules);
+    final reordered = List<IdeaModuleModel>.from(modules);
     final adjusted = newIndex > oldIndex ? newIndex - 1 : newIndex;
     final moved = reordered.removeAt(oldIndex);
     reordered.insert(adjusted, moved);
-
     for (var i = 0; i < reordered.length; i++) {
       await _client.from('idea_modules').update({
         'sort_order': i,
@@ -278,7 +282,7 @@ class SupabaseIdeaRepository implements IIdeaRepository {
   // ─── Checklist Items ─────────────────────────────────────
 
   @override
-  Stream<List<IdeaChecklistItem>> watchChecklistItems(String moduleId) {
+  Stream<List<IdeaChecklistItemModel>> watchChecklistItems(String moduleId) {
     return _client
         .from('idea_checklist_items')
         .stream(primaryKey: ['id'])
@@ -341,15 +345,14 @@ class SupabaseIdeaRepository implements IIdeaRepository {
 
   @override
   Future<void> reorderChecklistItems({
-    required List<IdeaChecklistItem> items,
+    required List<IdeaChecklistItemModel> items,
     required int oldIndex,
     required int newIndex,
   }) async {
-    final reordered = List<IdeaChecklistItem>.from(items);
+    final reordered = List<IdeaChecklistItemModel>.from(items);
     final adjusted = newIndex > oldIndex ? newIndex - 1 : newIndex;
     final moved = reordered.removeAt(oldIndex);
     reordered.insert(adjusted, moved);
-
     for (var i = 0; i < reordered.length; i++) {
       await _client.from('idea_checklist_items').update({
         'sort_order': i,
@@ -361,7 +364,7 @@ class SupabaseIdeaRepository implements IIdeaRepository {
   // ─── Link Items ───────────────────────────────────────────
 
   @override
-  Stream<List<IdeaLinkItem>> watchLinkItems(String moduleId) {
+  Stream<List<IdeaLinkItemModel>> watchLinkItems(String moduleId) {
     return _client
         .from('idea_link_items')
         .stream(primaryKey: ['id'])
@@ -411,15 +414,14 @@ class SupabaseIdeaRepository implements IIdeaRepository {
 
   @override
   Future<void> reorderLinkItems({
-    required List<IdeaLinkItem> items,
+    required List<IdeaLinkItemModel> items,
     required int oldIndex,
     required int newIndex,
   }) async {
-    final reordered = List<IdeaLinkItem>.from(items);
+    final reordered = List<IdeaLinkItemModel>.from(items);
     final adjusted = newIndex > oldIndex ? newIndex - 1 : newIndex;
     final moved = reordered.removeAt(oldIndex);
     reordered.insert(adjusted, moved);
-
     for (var i = 0; i < reordered.length; i++) {
       await _client.from('idea_link_items').update({
         'sort_order': i,
@@ -465,77 +467,88 @@ class SupabaseIdeaRepository implements IIdeaRepository {
 
   // ─── Row Mappers ──────────────────────────────────────────
 
-  Idea _rowToIdea(Map<String, dynamic> r) => Idea(
-        id: r['id'],
-        title: r['title'],
-        description: r['description'],
-        statusId: r['status_id'],
-        categoryId: r['category_id'],
-        createdBy: r['created_by'],
-        createdAt: DateTime.parse(r['created_at']),
-        updatedAt: DateTime.parse(r['updated_at']),
-        deletedAt: r['deleted_at'] != null ? DateTime.parse(r['deleted_at']) : null,
-        archivedAt: r['archived_at'] != null ? DateTime.parse(r['archived_at']) : null,
+  IdeaModel _rowToIdea(Map<String, dynamic> r) => IdeaModel(
+        id: r['id'] as String,
+        title: r['title'] as String,
+        description: r['description'] as String?,
+        statusId: r['status_id'] as String,
+        categoryId: r['category_id'] as String?,
+        createdBy: r['created_by'] as String,
+        createdAt: DateTime.parse(r['created_at'] as String),
+        updatedAt: DateTime.parse(r['updated_at'] as String),
+        deletedAt: r['deleted_at'] != null
+            ? DateTime.parse(r['deleted_at'] as String)
+            : null,
+        archivedAt: r['archived_at'] != null
+            ? DateTime.parse(r['archived_at'] as String)
+            : null,
+        syncStatus: SyncStatus.synced,
       );
 
-  Category _rowToCategory(Map<String, dynamic> r) => Category(
-        id: r['id'],
-        name: r['name'],
-        isSystem: r['is_system'] ?? false,
-        sortOrder: r['sort_order'] ?? 0,
-        createdAt: DateTime.parse(r['created_at']),
-        updatedAt: DateTime.parse(r['updated_at']),
+  CategoryModel _rowToCategory(Map<String, dynamic> r) => CategoryModel(
+        id: r['id'] as String,
+        name: r['name'] as String,
+        isSystem: r['is_system'] as bool? ?? false,
+        sortOrder: r['sort_order'] as int? ?? 0,
+        createdAt: DateTime.parse(r['created_at'] as String),
+        updatedAt: DateTime.parse(r['updated_at'] as String),
       );
 
-  IdeaStatuse _rowToStatus(Map<String, dynamic> r) => IdeaStatuse(
-        id: r['id'],
-        name: r['name'],
-        isSystem: r['is_system'] ?? false,
-        sortOrder: r['sort_order'] ?? 0,
-        createdAt: DateTime.parse(r['created_at']),
-        updatedAt: DateTime.parse(r['updated_at']),
+  IdeaStatusModel _rowToStatus(Map<String, dynamic> r) => IdeaStatusModel(
+        id: r['id'] as String,
+        name: r['name'] as String,
+        isSystem: r['is_system'] as bool? ?? false,
+        sortOrder: r['sort_order'] as int? ?? 0,
+        createdAt: DateTime.parse(r['created_at'] as String),
+        updatedAt: DateTime.parse(r['updated_at'] as String),
       );
 
-  IdeaModule _rowToModule(Map<String, dynamic> r) => IdeaModule(
-        id: r['id'],
-        ideaId: r['idea_id'],
-        type: IdeaModuleType.values.byName(r['type']),
-        title: r['title'],
-        sortOrder: r['sort_order'] ?? 0,
-        createdAt: DateTime.parse(r['created_at']),
-        updatedAt: DateTime.parse(r['updated_at']),
+  IdeaModuleModel _rowToModule(Map<String, dynamic> r) => IdeaModuleModel(
+        id: r['id'] as String,
+        ideaId: r['idea_id'] as String,
+        type: IdeaModuleType.values.byName(r['type'] as String),
+        title: r['title'] as String,
+        sortOrder: r['sort_order'] as int? ?? 0,
+        createdAt: DateTime.parse(r['created_at'] as String),
+        updatedAt: DateTime.parse(r['updated_at'] as String),
       );
 
-  IdeaChecklistItem _rowToChecklistItem(Map<String, dynamic> r) =>
-      IdeaChecklistItem(
-        id: r['id'],
-        moduleId: r['module_id'],
-        content: r['content'],
-        isDone: r['is_done'] ?? false,
-        sortOrder: r['sort_order'] ?? 0,
-        createdAt: DateTime.parse(r['created_at']),
-        updatedAt: DateTime.parse(r['updated_at']),
+  IdeaChecklistItemModel _rowToChecklistItem(Map<String, dynamic> r) =>
+      IdeaChecklistItemModel(
+        id: r['id'] as String,
+        moduleId: r['module_id'] as String,
+        content: r['content'] as String,
+        isDone: r['is_done'] as bool? ?? false,
+        sortOrder: r['sort_order'] as int? ?? 0,
+        createdAt: DateTime.parse(r['created_at'] as String),
+        updatedAt: DateTime.parse(r['updated_at'] as String),
       );
 
-  IdeaLinkItem _rowToLinkItem(Map<String, dynamic> r) => IdeaLinkItem(
-        id: r['id'],
-        moduleId: r['module_id'],
-        url: r['url'],
-        label: r['label'],
-        sortOrder: r['sort_order'] ?? 0,
-        createdAt: DateTime.parse(r['created_at']),
-        updatedAt: DateTime.parse(r['updated_at']),
+  IdeaLinkItemModel _rowToLinkItem(Map<String, dynamic> r) => IdeaLinkItemModel(
+        id: r['id'] as String,
+        moduleId: r['module_id'] as String,
+        url: r['url'] as String,
+        label: r['label'] as String?,
+        sortOrder: r['sort_order'] as int? ?? 0,
+        createdAt: DateTime.parse(r['created_at'] as String),
+        updatedAt: DateTime.parse(r['updated_at'] as String),
       );
 
   // ─── Helpers ─────────────────────────────────────────────
 
-  String _buildFallbackTitle({String? explicitTitle, required String description}) {
+  String _buildFallbackTitle({
+    String? explicitTitle,
+    required String description,
+  }) {
     final clean = explicitTitle?.trim();
     if (clean != null && clean.isNotEmpty) return clean;
-    final normalized = description.replaceAll('\n', ' ').replaceAll(RegExp(r'\s+'), ' ').trim();
+    final normalized = description
+        .replaceAll('\n', ' ')
+        .replaceAll(RegExp(r'\s+'), ' ')
+        .trim();
     if (normalized.isEmpty) return 'Neue Idee';
     const maxLength = 60;
     if (normalized.length <= maxLength) return normalized;
-    return '${normalized.substring(0, maxLength).trim()}…';
+    return '${normalized.substring(0, maxLength).trim()}\u2026';
   }
 }

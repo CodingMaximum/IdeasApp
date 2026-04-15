@@ -1,8 +1,15 @@
 import 'package:drift/drift.dart';
 import 'package:ideas_app/data/db/seed_ids.dart';
-import 'package:ideas_app/data/enums/idea_module_type.dart';
+import 'package:ideas_app/domain/enums/idea_module_type.dart';
 import 'package:uuid/uuid.dart';
 import 'package:ideas_app/data/repositories/idea_repository_interface.dart';
+import 'package:ideas_app/domain/models/idea_model.dart';
+import 'package:ideas_app/domain/models/category_model.dart';
+import 'package:ideas_app/domain/models/idea_status_model.dart';
+import 'package:ideas_app/domain/models/idea_module_model.dart';
+import 'package:ideas_app/domain/models/idea_checklist_item_model.dart';
+import 'package:ideas_app/domain/models/idea_link_item_model.dart';
+import 'package:ideas_app/domain/models/sync_status.dart';
 
 import '../../db/app_database.dart';
 
@@ -13,9 +20,76 @@ class DriftIdeaRepository implements IIdeaRepository {
 
   DriftIdeaRepository(this.db, this.userId);
 
+  // ─── Mapper: Drift → Domain ───────────────────────────────
+
+  IdeaModel _toIdea(Idea r) => IdeaModel(
+        id: r.id,
+        title: r.title,
+        description: r.description,
+        categoryId: r.categoryId,
+        statusId: r.statusId,
+        archivedAt: r.archivedAt,
+        deletedAt: r.deletedAt,
+        createdAt: r.createdAt,
+        updatedAt: r.updatedAt,
+        createdBy: r.createdBy,
+        syncStatus: SyncStatus.synced,
+      );
+
+  CategoryModel _toCategory(Category r) => CategoryModel(
+        id: r.id,
+        name: r.name,
+        isSystem: r.isSystem,
+        sortOrder: r.sortOrder,
+        createdAt: r.createdAt,
+        updatedAt: r.updatedAt,
+      );
+
+  IdeaStatusModel _toStatus(IdeaStatuse r) => IdeaStatusModel(
+        id: r.id,
+        name: r.name,
+        isSystem: r.isSystem,
+        sortOrder: r.sortOrder,
+        createdAt: r.createdAt,
+        updatedAt: r.updatedAt,
+      );
+
+  IdeaModuleModel _toModule(IdeaModule r) => IdeaModuleModel(
+        id: r.id,
+        ideaId: r.ideaId,
+        type: r.type,
+        title: r.title,
+        sortOrder: r.sortOrder,
+        createdAt: r.createdAt,
+        updatedAt: r.updatedAt,
+      );
+
+  IdeaChecklistItemModel _toChecklistItem(IdeaChecklistItem r) =>
+      IdeaChecklistItemModel(
+        id: r.id,
+        moduleId: r.moduleId,
+        content: r.content,
+        isDone: r.isDone,
+        sortOrder: r.sortOrder,
+        createdAt: r.createdAt,
+        updatedAt: r.updatedAt,
+      );
+
+  IdeaLinkItemModel _toLinkItem(IdeaLinkItem r) => IdeaLinkItemModel(
+        id: r.id,
+        moduleId: r.moduleId,
+        label: r.label,
+        url: r.url,
+        sortOrder: r.sortOrder,
+        createdAt: r.createdAt,
+        updatedAt: r.updatedAt,
+      );
+
+  // ─── Ideas ───────────────────────────────────────────────
+
+  @override
   Future<void> createIdea(String title) async {
     final now = DateTime.now();
-
     await db.insertIdea(
       IdeasCompanion(
         id: Value(uuid.v4()),
@@ -28,25 +102,24 @@ class DriftIdeaRepository implements IIdeaRepository {
     );
   }
 
+  @override
   Future<void> updateIdea({
     required String id,
     required String title,
     required String description,
   }) async {
-    final now = DateTime.now();
-
     await db.updateIdea(
       id: id,
       title: title,
       description: description.isEmpty ? null : description,
-      updatedAt: now,
+      updatedAt: DateTime.now(),
     );
   }
 
+  @override
   Future<void> renameIdea(String id, String title) async {
     final existing = await db.getIdeaById(id);
     if (existing == null) return;
-
     await db.updateIdea(
       id: id,
       title: title,
@@ -55,91 +128,81 @@ class DriftIdeaRepository implements IIdeaRepository {
     );
   }
 
-  Future<void> deleteIdea(String id) async {
-    await db.softDeleteIdea(id);
+  @override
+  Future<void> deleteIdea(String id) async => db.softDeleteIdea(id);
+
+  @override
+  Future<void> deleteIdeaPermanently(String id) async => db.deleteIdea(id);
+
+  @override
+  Stream<IdeaModel?> watchIdeaById(String id) =>
+      db.watchIdeaById(id).map((r) => r == null ? null : _toIdea(r));
+
+  @override
+  Future<IdeaModel?> getIdeaById(String id) async {
+    final r = await db.getIdeaById(id);
+    return r == null ? null : _toIdea(r);
   }
 
-  Future<void> deleteIdeaPermanently(String id) async {
-    await db.deleteIdea(id);
-  }
+  @override
+  Stream<List<IdeaModel>> watchIdeas() =>
+      db.watchIdeas().map((list) => list.map(_toIdea).toList());
 
-  Stream<Idea?> watchIdeaById(String id) {
-    return db.watchIdeaById(id);
-  }
+  @override
+  Stream<List<IdeaModel>> watchArchivedIdeas() =>
+      db.watchArchivedIdeas().map((list) => list.map(_toIdea).toList());
 
-  Future<Idea?> getIdeaById(String id) {
-    return db.getIdeaById(id);
-  }
+  @override
+  Future<void> restoreIdea(String id) async => db.restoreIdea(id);
 
-  Stream<List<Idea>> watchIdeas() => db.watchIdeas();
+  @override
+  Future<void> archiveIdea(String id) async =>
+      db.updateIdeaArchived(id, DateTime.now());
 
-  Stream<List<Category>> watchCategories() => db.watchCategories();
+  @override
+  Future<void> unarchiveIdea(String id) async =>
+      db.updateIdeaArchived(id, null);
 
-  Stream<List<IdeaStatuse>> watchIdeaStatuses() => db.watchIdeaStatuses();
+  @override
+  Future<void> updateIdeaCategory(String id, String categoryId) async =>
+      db.updateIdeaCategory(id, categoryId);
 
-  Future<void> updateIdeaCategory(String id, String categoryId) async {
-    await db.updateIdeaCategory(id, categoryId);
-  }
+  @override
+  Future<void> updateIdeaStatus(String id, String statusId) async =>
+      db.updateIdeaStatus(id, statusId);
 
-  Future<void> updateIdeaStatus(String id, String statusId) async {
-    await db.updateIdeaStatus(id, statusId);
-  }
+  // ─── Categories & Statuses ───────────────────────────────
 
-  Future<void> restoreIdea(String id) async {
-    await db.restoreIdea(id);
-  }
+  @override
+  Stream<List<CategoryModel>> watchCategories() =>
+      db.watchCategories().map((list) => list.map(_toCategory).toList());
 
-  Stream<List<Idea>> watchArchivedIdeas() => db.watchArchivedIdeas();
+  @override
+  Stream<List<IdeaStatusModel>> watchIdeaStatuses() =>
+      db.watchIdeaStatuses().map((list) => list.map(_toStatus).toList());
 
-  Future<void> archiveIdea(String id) async {
-    await db.updateIdeaArchived(id, DateTime.now());
-  }
+  // ─── Modules ─────────────────────────────────────────────
 
-  Future<void> unarchiveIdea(String id) async {
-    await db.updateIdeaArchived(id, null);
-  }
-
-  Stream<List<IdeaModule>> watchModulesForIdea(String ideaId) {
+  @override
+  Stream<List<IdeaModuleModel>> watchModulesForIdea(String ideaId) {
     final query = db.select(db.ideaModules)
       ..where((tbl) => tbl.ideaId.equals(ideaId))
       ..orderBy([
         (tbl) => OrderingTerm.asc(tbl.sortOrder),
         (tbl) => OrderingTerm.asc(tbl.createdAt),
       ]);
-
-    return query.watch();
+    return query.watch().map((list) => list.map(_toModule).toList());
   }
 
-  Stream<List<IdeaChecklistItem>> watchChecklistItems(String moduleId) {
-    final query = db.select(db.ideaChecklistItems)
-      ..where((tbl) => tbl.moduleId.equals(moduleId))
-      ..orderBy([
-        (tbl) => OrderingTerm.asc(tbl.sortOrder),
-        (tbl) => OrderingTerm.asc(tbl.createdAt),
-      ]);
+  @override
+  Future<void> addChecklistModule(String ideaId) =>
+      addChecklistModuleWithTitle(ideaId: ideaId, title: 'Neue Checkliste');
 
-    return query.watch();
-  }
+  @override
+  Future<void> addLinksModule(String ideaId) =>
+      addLinksModuleWithTitle(ideaId: ideaId, title: 'Neue Links');
 
-  Stream<List<IdeaLinkItem>> watchLinkItems(String moduleId) {
-    final query = db.select(db.ideaLinkItems)
-      ..where((tbl) => tbl.moduleId.equals(moduleId))
-      ..orderBy([
-        (tbl) => OrderingTerm.asc(tbl.sortOrder),
-        (tbl) => OrderingTerm.asc(tbl.createdAt),
-      ]);
-
-    return query.watch();
-  }
-
-  Future<void> addChecklistModule(String ideaId) async {
-    await addChecklistModuleWithTitle(ideaId: ideaId, title: 'Neue Checkliste');
-  }
-
-  Future<void> addLinksModule(String ideaId) async {
-    await addLinksModuleWithTitle(ideaId: ideaId, title: 'Neue Links');
-  }
-
+  @override
   Future<void> addChecklistModuleWithTitle({
     required String ideaId,
     required String title,
@@ -147,10 +210,7 @@ class DriftIdeaRepository implements IIdeaRepository {
     final now = DateTime.now();
     final sortOrder = await _nextModuleSortOrder(ideaId);
     final trimmed = title.trim();
-
-    await db
-        .into(db.ideaModules)
-        .insert(
+    await db.into(db.ideaModules).insert(
           IdeaModulesCompanion.insert(
             id: uuid.v4(),
             ideaId: ideaId,
@@ -163,6 +223,7 @@ class DriftIdeaRepository implements IIdeaRepository {
         );
   }
 
+  @override
   Future<void> addLinksModuleWithTitle({
     required String ideaId,
     required String title,
@@ -170,10 +231,7 @@ class DriftIdeaRepository implements IIdeaRepository {
     final now = DateTime.now();
     final sortOrder = await _nextModuleSortOrder(ideaId);
     final trimmed = title.trim();
-
-    await db
-        .into(db.ideaModules)
-        .insert(
+    await db.into(db.ideaModules).insert(
           IdeaModulesCompanion.insert(
             id: uuid.v4(),
             ideaId: ideaId,
@@ -186,13 +244,13 @@ class DriftIdeaRepository implements IIdeaRepository {
         );
   }
 
+  @override
   Future<void> renameModule(String moduleId, String title) async {
     final trimmed = title.trim();
     if (trimmed.isEmpty) return;
-
-    await (db.update(
-      db.ideaModules,
-    )..where((tbl) => tbl.id.equals(moduleId))).write(
+    await (db.update(db.ideaModules)
+          ..where((tbl) => tbl.id.equals(moduleId)))
+        .write(
       IdeaModulesCompanion(
         title: Value(trimmed),
         updatedAt: Value(DateTime.now()),
@@ -200,13 +258,65 @@ class DriftIdeaRepository implements IIdeaRepository {
     );
   }
 
-  Future<void> addChecklistItem(String moduleId) async {
-    await addChecklistItemWithContent(
-      moduleId: moduleId,
-      content: 'Neuer Punkt',
-    );
+  @override
+  Future<void> deleteModule(String moduleId) async {
+    await db.transaction(() async {
+      await (db.delete(db.ideaChecklistItems)
+            ..where((tbl) => tbl.moduleId.equals(moduleId)))
+          .go();
+      await (db.delete(db.ideaLinkItems)
+            ..where((tbl) => tbl.moduleId.equals(moduleId)))
+          .go();
+      await (db.delete(db.ideaModules)
+            ..where((tbl) => tbl.id.equals(moduleId)))
+          .go();
+    });
   }
 
+  @override
+  Future<void> reorderModules({
+    required List<IdeaModuleModel> modules,
+    required int oldIndex,
+    required int newIndex,
+  }) async {
+    if (oldIndex < 0 || oldIndex >= modules.length) return;
+    if (newIndex < 0 || newIndex > modules.length) return;
+    final reordered = List<IdeaModuleModel>.from(modules);
+    final adjusted = newIndex > oldIndex ? newIndex - 1 : newIndex;
+    final moved = reordered.removeAt(oldIndex);
+    reordered.insert(adjusted, moved);
+    await db.batch((batch) {
+      for (var i = 0; i < reordered.length; i++) {
+        batch.update(
+          db.ideaModules,
+          IdeaModulesCompanion(
+            sortOrder: Value(i),
+            updatedAt: Value(DateTime.now()),
+          ),
+          where: (tbl) => tbl.id.equals(reordered[i].id),
+        );
+      }
+    });
+  }
+
+  // ─── Checklist Items ─────────────────────────────────────
+
+  @override
+  Stream<List<IdeaChecklistItemModel>> watchChecklistItems(String moduleId) {
+    final query = db.select(db.ideaChecklistItems)
+      ..where((tbl) => tbl.moduleId.equals(moduleId))
+      ..orderBy([
+        (tbl) => OrderingTerm.asc(tbl.sortOrder),
+        (tbl) => OrderingTerm.asc(tbl.createdAt),
+      ]);
+    return query.watch().map((list) => list.map(_toChecklistItem).toList());
+  }
+
+  @override
+  Future<void> addChecklistItem(String moduleId) =>
+      addChecklistItemWithContent(moduleId: moduleId, content: 'Neuer Punkt');
+
+  @override
   Future<void> addChecklistItemWithContent({
     required String moduleId,
     required String content,
@@ -214,10 +324,7 @@ class DriftIdeaRepository implements IIdeaRepository {
     final now = DateTime.now();
     final sortOrder = await _nextChecklistItemSortOrder(moduleId);
     final trimmed = content.trim();
-
-    await db
-        .into(db.ideaChecklistItems)
-        .insert(
+    await db.into(db.ideaChecklistItems).insert(
           IdeaChecklistItemsCompanion.insert(
             id: uuid.v4(),
             moduleId: moduleId,
@@ -229,6 +336,7 @@ class DriftIdeaRepository implements IIdeaRepository {
         );
   }
 
+  @override
   Future<void> updateChecklistItem({
     required String itemId,
     required String content,
@@ -236,10 +344,9 @@ class DriftIdeaRepository implements IIdeaRepository {
   }) async {
     final trimmed = content.trim();
     if (trimmed.isEmpty) return;
-
-    await (db.update(
-      db.ideaChecklistItems,
-    )..where((tbl) => tbl.id.equals(itemId))).write(
+    await (db.update(db.ideaChecklistItems)
+          ..where((tbl) => tbl.id.equals(itemId)))
+        .write(
       IdeaChecklistItemsCompanion(
         content: Value(trimmed),
         isDone: Value(isDone),
@@ -248,13 +355,14 @@ class DriftIdeaRepository implements IIdeaRepository {
     );
   }
 
+  @override
   Future<void> toggleChecklistItem({
     required String itemId,
     required bool isDone,
   }) async {
-    await (db.update(
-      db.ideaChecklistItems,
-    )..where((tbl) => tbl.id.equals(itemId))).write(
+    await (db.update(db.ideaChecklistItems)
+          ..where((tbl) => tbl.id.equals(itemId)))
+        .write(
       IdeaChecklistItemsCompanion(
         isDone: Value(isDone),
         updatedAt: Value(DateTime.now()),
@@ -262,12 +370,53 @@ class DriftIdeaRepository implements IIdeaRepository {
     );
   }
 
+  @override
   Future<void> deleteChecklistItem(String itemId) async {
-    await (db.delete(
-      db.ideaChecklistItems,
-    )..where((tbl) => tbl.id.equals(itemId))).go();
+    await (db.delete(db.ideaChecklistItems)
+          ..where((tbl) => tbl.id.equals(itemId)))
+        .go();
   }
 
+  @override
+  Future<void> reorderChecklistItems({
+    required List<IdeaChecklistItemModel> items,
+    required int oldIndex,
+    required int newIndex,
+  }) async {
+    if (oldIndex < 0 || oldIndex >= items.length) return;
+    if (newIndex < 0 || newIndex > items.length) return;
+    final reordered = List<IdeaChecklistItemModel>.from(items);
+    final adjusted = newIndex > oldIndex ? newIndex - 1 : newIndex;
+    final moved = reordered.removeAt(oldIndex);
+    reordered.insert(adjusted, moved);
+    await db.batch((batch) {
+      for (var i = 0; i < reordered.length; i++) {
+        batch.update(
+          db.ideaChecklistItems,
+          IdeaChecklistItemsCompanion(
+            sortOrder: Value(i),
+            updatedAt: Value(DateTime.now()),
+          ),
+          where: (tbl) => tbl.id.equals(reordered[i].id),
+        );
+      }
+    });
+  }
+
+  // ─── Link Items ───────────────────────────────────────────
+
+  @override
+  Stream<List<IdeaLinkItemModel>> watchLinkItems(String moduleId) {
+    final query = db.select(db.ideaLinkItems)
+      ..where((tbl) => tbl.moduleId.equals(moduleId))
+      ..orderBy([
+        (tbl) => OrderingTerm.asc(tbl.sortOrder),
+        (tbl) => OrderingTerm.asc(tbl.createdAt),
+      ]);
+    return query.watch().map((list) => list.map(_toLinkItem).toList());
+  }
+
+  @override
   Future<void> addLinkItem({
     required String moduleId,
     required String url,
@@ -275,10 +424,7 @@ class DriftIdeaRepository implements IIdeaRepository {
   }) async {
     final now = DateTime.now();
     final sortOrder = await _nextLinkItemSortOrder(moduleId);
-
-    await db
-        .into(db.ideaLinkItems)
-        .insert(
+    await db.into(db.ideaLinkItems).insert(
           IdeaLinkItemsCompanion.insert(
             id: uuid.v4(),
             moduleId: moduleId,
@@ -293,211 +439,101 @@ class DriftIdeaRepository implements IIdeaRepository {
         );
   }
 
+  @override
   Future<void> updateLinkItem({
     required String itemId,
     required String url,
     String? label,
   }) async {
     final trimmedUrl = url.trim();
-    final trimmedLabel = label?.trim();
-
     if (trimmedUrl.isEmpty) return;
-
-    await (db.update(
-      db.ideaLinkItems,
-    )..where((tbl) => tbl.id.equals(itemId))).write(
+    await (db.update(db.ideaLinkItems)
+          ..where((tbl) => tbl.id.equals(itemId)))
+        .write(
       IdeaLinkItemsCompanion(
         url: Value(trimmedUrl),
         label: Value(
-          trimmedLabel == null || trimmedLabel.isEmpty ? null : trimmedLabel,
+          label == null || label.trim().isEmpty ? null : label.trim(),
         ),
         updatedAt: Value(DateTime.now()),
       ),
     );
   }
 
+  @override
   Future<void> deleteLinkItem(String itemId) async {
-    await (db.delete(
-      db.ideaLinkItems,
-    )..where((tbl) => tbl.id.equals(itemId))).go();
+    await (db.delete(db.ideaLinkItems)
+          ..where((tbl) => tbl.id.equals(itemId)))
+        .go();
   }
 
-  Future<void> deleteModule(String moduleId) async {
-    await db.transaction(() async {
-      await (db.delete(
-        db.ideaChecklistItems,
-      )..where((tbl) => tbl.moduleId.equals(moduleId))).go();
-
-      await (db.delete(
-        db.ideaLinkItems,
-      )..where((tbl) => tbl.moduleId.equals(moduleId))).go();
-
-      await (db.delete(
-        db.ideaModules,
-      )..where((tbl) => tbl.id.equals(moduleId))).go();
-    });
-  }
-
-  Future<int> _nextModuleSortOrder(String ideaId) async {
-    final modules = await (db.select(
-      db.ideaModules,
-    )..where((tbl) => tbl.ideaId.equals(ideaId))).get();
-
-    if (modules.isEmpty) return 0;
-
-    final maxSortOrder = modules
-        .map((module) => module.sortOrder)
-        .reduce((a, b) => a > b ? a : b);
-
-    return maxSortOrder + 1;
-  }
-
-  Future<int> _nextChecklistItemSortOrder(String moduleId) async {
-    final items = await (db.select(
-      db.ideaChecklistItems,
-    )..where((tbl) => tbl.moduleId.equals(moduleId))).get();
-
-    if (items.isEmpty) return 0;
-
-    final maxSortOrder = items
-        .map((item) => item.sortOrder)
-        .reduce((a, b) => a > b ? a : b);
-
-    return maxSortOrder + 1;
-  }
-
-  Future<int> _nextLinkItemSortOrder(String moduleId) async {
-    final items = await (db.select(
-      db.ideaLinkItems,
-    )..where((tbl) => tbl.moduleId.equals(moduleId))).get();
-
-    if (items.isEmpty) return 0;
-
-    final maxSortOrder = items
-        .map((item) => item.sortOrder)
-        .reduce((a, b) => a > b ? a : b);
-
-    return maxSortOrder + 1;
-  }
-
-  Future<void> reorderModules({
-    required List<IdeaModule> modules,
+  @override
+  Future<void> reorderLinkItems({
+    required List<IdeaLinkItemModel> items,
     required int oldIndex,
     required int newIndex,
   }) async {
-    if (oldIndex < 0 || oldIndex >= modules.length) return;
-    if (newIndex < 0 || newIndex > modules.length) return;
-
-    final reordered = List<IdeaModule>.from(modules);
-
-    if (newIndex > oldIndex) {
-      newIndex -= 1;
-    }
-
+    if (oldIndex < 0 || oldIndex >= items.length) return;
+    if (newIndex < 0 || newIndex > items.length) return;
+    final reordered = List<IdeaLinkItemModel>.from(items);
+    final adjusted = newIndex > oldIndex ? newIndex - 1 : newIndex;
     final moved = reordered.removeAt(oldIndex);
-    reordered.insert(newIndex, moved);
-
+    reordered.insert(adjusted, moved);
     await db.batch((batch) {
       for (var i = 0; i < reordered.length; i++) {
-        final module = reordered[i];
-
         batch.update(
-          db.ideaModules,
-          IdeaModulesCompanion(
+          db.ideaLinkItems,
+          IdeaLinkItemsCompanion(
             sortOrder: Value(i),
             updatedAt: Value(DateTime.now()),
           ),
-          where: (tbl) => tbl.id.equals(module.id),
+          where: (tbl) => tbl.id.equals(reordered[i].id),
         );
       }
     });
   }
 
-  Future<void> reorderChecklistItems({
-    required List<IdeaChecklistItem> items,
-    required int oldIndex,
-    required int newIndex,
-  }) async {
-    if (oldIndex < 0 || oldIndex >= items.length) return;
-    if (newIndex < 0 || newIndex > items.length) return;
+  // ─── Sort Order Helpers ───────────────────────────────────
 
-    final reordered = List<IdeaChecklistItem>.from(items);
-
-    if (newIndex > oldIndex) {
-      newIndex -= 1;
-    }
-
-    final moved = reordered.removeAt(oldIndex);
-    reordered.insert(newIndex, moved);
-
-    final now = DateTime.now();
-
-    await db.batch((batch) {
-      for (var i = 0; i < reordered.length; i++) {
-        final item = reordered[i];
-
-        batch.update(
-          db.ideaChecklistItems,
-          IdeaChecklistItemsCompanion(
-            sortOrder: Value(i),
-            updatedAt: Value(now),
-          ),
-          where: (tbl) => tbl.id.equals(item.id),
-        );
-      }
-    });
+  Future<int> _nextModuleSortOrder(String ideaId) async {
+    final modules = await (db.select(db.ideaModules)
+          ..where((tbl) => tbl.ideaId.equals(ideaId)))
+        .get();
+    if (modules.isEmpty) return 0;
+    return modules.map((m) => m.sortOrder).reduce((a, b) => a > b ? a : b) + 1;
   }
 
-  Future<void> reorderLinkItems({
-    required List<IdeaLinkItem> items,
-    required int oldIndex,
-    required int newIndex,
-  }) async {
-    if (oldIndex < 0 || oldIndex >= items.length) return;
-    if (newIndex < 0 || newIndex > items.length) return;
-
-    final reordered = List<IdeaLinkItem>.from(items);
-
-    if (newIndex > oldIndex) {
-      newIndex -= 1;
-    }
-
-    final moved = reordered.removeAt(oldIndex);
-    reordered.insert(newIndex, moved);
-
-    final now = DateTime.now();
-
-    await db.batch((batch) {
-      for (var i = 0; i < reordered.length; i++) {
-        final item = reordered[i];
-
-        batch.update(
-          db.ideaLinkItems,
-          IdeaLinkItemsCompanion(sortOrder: Value(i), updatedAt: Value(now)),
-          where: (tbl) => tbl.id.equals(item.id),
-        );
-      }
-    });
+  Future<int> _nextChecklistItemSortOrder(String moduleId) async {
+    final items = await (db.select(db.ideaChecklistItems)
+          ..where((tbl) => tbl.moduleId.equals(moduleId)))
+        .get();
+    if (items.isEmpty) return 0;
+    return items.map((i) => i.sortOrder).reduce((a, b) => a > b ? a : b) + 1;
   }
 
+  Future<int> _nextLinkItemSortOrder(String moduleId) async {
+    final items = await (db.select(db.ideaLinkItems)
+          ..where((tbl) => tbl.moduleId.equals(moduleId)))
+        .get();
+    if (items.isEmpty) return 0;
+    return items.map((i) => i.sortOrder).reduce((a, b) => a > b ? a : b) + 1;
+  }
+
+  // ─── Helpers ─────────────────────────────────────────────
+
+  @override
   Future<void> createIdeaFromCapture({
     required String description,
     String? title,
   }) async {
-    final cleanDescription = description.trim();
-    if (cleanDescription.isEmpty) return;
-
+    final clean = description.trim();
+    if (clean.isEmpty) return;
     final now = DateTime.now();
-    final resolvedTitle = _buildFallbackTitle(
-      explicitTitle: title,
-      description: cleanDescription,
-    );
-
     await db.insertIdea(
       IdeasCompanion(
         id: Value(uuid.v4()),
-        title: Value(resolvedTitle),
-        description: Value(cleanDescription),
+        title: Value(_buildFallbackTitle(explicitTitle: title, description: clean)),
+        description: Value(clean),
         statusId: const Value(SeedIds.planningStatus),
         createdAt: Value(now),
         updatedAt: Value(now),
@@ -510,25 +546,15 @@ class DriftIdeaRepository implements IIdeaRepository {
     String? explicitTitle,
     required String description,
   }) {
-    final cleanTitle = explicitTitle?.trim();
-    if (cleanTitle != null && cleanTitle.isNotEmpty) {
-      return cleanTitle;
-    }
-
+    final clean = explicitTitle?.trim();
+    if (clean != null && clean.isNotEmpty) return clean;
     final normalized = description
         .replaceAll('\n', ' ')
         .replaceAll(RegExp(r'\s+'), ' ')
         .trim();
-
-    if (normalized.isEmpty) {
-      return 'Neue Idee';
-    }
-
+    if (normalized.isEmpty) return 'Neue Idee';
     const maxLength = 60;
-    if (normalized.length <= maxLength) {
-      return normalized;
-    }
-
-    return '${normalized.substring(0, maxLength).trim()}…';
+    if (normalized.length <= maxLength) return normalized;
+    return '${normalized.substring(0, maxLength).trim()}\u2026';
   }
 }
