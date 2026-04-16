@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:ideas_app/data/db/app_database.dart';
+import 'package:ideas_app/domain/models/idea_status_model.dart';
 
 class StatusSelection extends StatelessWidget {
   final String value;
-  final List<IdeaStatuse> statuses;
+  final List<IdeaStatusModel> statuses;
   final ValueChanged<String> onChanged;
 
   const StatusSelection({

@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:ideas_app/core/utils/platform.dart';
 import 'package:ideas_app/data/db/app_database.dart';
+import 'package:ideas_app/domain/models/idea_link_item_model.dart';
+import 'package:ideas_app/domain/models/idea_module_model.dart';
 import 'package:ideas_app/features/ideas/logic/providers.dart';
 import 'package:ideas_app/features/ideas/presentation/widgets/module_card_header.dart';
 import 'package:ideas_app/features/ideas/presentation/widgets/module_card_shell.dart';
@@ -9,27 +11,21 @@ import 'package:ideas_app/features/ideas/presentation/widgets/module_dialogs.dar
 import 'package:url_launcher/url_launcher.dart';
 
 class IdeaLinksModuleCard extends ConsumerWidget {
-  final IdeaModule module;
+  final IdeaModuleModel module;
 
-  const IdeaLinksModuleCard({
-    super.key,
-    required this.module,
-  });
+  const IdeaLinksModuleCard({super.key, required this.module});
 
   bool _isValidWebUrl(String value) {
     final uri = Uri.tryParse(value.trim());
     if (uri == null) return false;
-    return (uri.scheme == 'http' || uri.scheme == 'https') && uri.host.isNotEmpty;
+    return (uri.scheme == 'http' || uri.scheme == 'https') &&
+        uri.host.isNotEmpty;
   }
 
   void _showSnackBar(BuildContext context, String message) {
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
-      ..showSnackBar(
-        SnackBar(
-          content: Text(message),
-        ),
-      );
+      ..showSnackBar(SnackBar(content: Text(message)));
   }
 
   Future<void> _openLink(BuildContext context, String url) async {
@@ -40,10 +36,7 @@ class IdeaLinksModuleCard extends ConsumerWidget {
       return;
     }
 
-    final success = await launchUrl(
-      uri,
-      mode: LaunchMode.externalApplication,
-    );
+    final success = await launchUrl(uri, mode: LaunchMode.externalApplication);
 
     if (!success && context.mounted) {
       _showSnackBar(context, 'Link konnte nicht geöffnet werden.');
@@ -68,10 +61,7 @@ class IdeaLinksModuleCard extends ConsumerWidget {
     }
   }
 
-  Future<void> _confirmDeleteModule(
-    BuildContext context,
-    WidgetRef ref,
-  ) async {
+  Future<void> _confirmDeleteModule(BuildContext context, WidgetRef ref) async {
     final confirmed = await showDeleteModuleDialog(
       context: context,
       moduleTitle: module.title,
@@ -87,10 +77,7 @@ class IdeaLinksModuleCard extends ConsumerWidget {
     }
   }
 
-  Future<void> _showAddLinkDialog(
-    BuildContext context,
-    WidgetRef ref,
-  ) async {
+  Future<void> _showAddLinkDialog(BuildContext context, WidgetRef ref) async {
     final labelController = TextEditingController();
     final urlController = TextEditingController(text: 'https://');
     String? errorText;
@@ -140,7 +127,9 @@ class IdeaLinksModuleCard extends ConsumerWidget {
                       return;
                     }
 
-                    await ref.read(ideaRepositoryProvider).addLinkItem(
+                    await ref
+                        .read(ideaRepositoryProvider)
+                        .addLinkItem(
                           moduleId: module.id,
                           url: url,
                           label: label.isEmpty ? null : label,
@@ -167,7 +156,7 @@ class IdeaLinksModuleCard extends ConsumerWidget {
   Future<void> _showEditLinkDialog(
     BuildContext context,
     WidgetRef ref,
-    IdeaLinkItem item,
+    IdeaLinkItemModel item,
   ) async {
     final labelController = TextEditingController(text: item.label ?? '');
     final urlController = TextEditingController(text: item.url);
@@ -218,7 +207,9 @@ class IdeaLinksModuleCard extends ConsumerWidget {
                       return;
                     }
 
-                    await ref.read(ideaRepositoryProvider).updateLinkItem(
+                    await ref
+                        .read(ideaRepositoryProvider)
+                        .updateLinkItem(
                           itemId: item.id,
                           url: url,
                           label: label.isEmpty ? null : label,
@@ -245,7 +236,7 @@ class IdeaLinksModuleCard extends ConsumerWidget {
   Future<void> _deleteLinkItem(
     BuildContext context,
     WidgetRef ref,
-    IdeaLinkItem item,
+    IdeaLinkItemModel item,
   ) async {
     await ref.read(ideaRepositoryProvider).deleteLinkItem(item.id);
 
@@ -311,7 +302,9 @@ class IdeaLinksModuleCard extends ConsumerWidget {
                 },
                 itemCount: items.length,
                 onReorder: (oldIndex, newIndex) async {
-                  await ref.read(ideaRepositoryProvider).reorderLinkItems(
+                  await ref
+                      .read(ideaRepositoryProvider)
+                      .reorderLinkItems(
                         items: items,
                         oldIndex: oldIndex,
                         newIndex: newIndex,
@@ -330,30 +323,18 @@ class IdeaLinksModuleCard extends ConsumerWidget {
                           ? _MobileLinkItem(
                               item: item,
                               onOpen: () => _openLink(context, item.url),
-                              onEdit: () => _showEditLinkDialog(
-                                context,
-                                ref,
-                                item,
-                              ),
-                              onDelete: () => _deleteLinkItem(
-                                context,
-                                ref,
-                                item,
-                              ),
+                              onEdit: () =>
+                                  _showEditLinkDialog(context, ref, item),
+                              onDelete: () =>
+                                  _deleteLinkItem(context, ref, item),
                             )
                           : _DesktopLinkItem(
                               item: item,
                               onOpen: () => _openLink(context, item.url),
-                              onEdit: () => _showEditLinkDialog(
-                                context,
-                                ref,
-                                item,
-                              ),
-                              onDelete: () => _deleteLinkItem(
-                                context,
-                                ref,
-                                item,
-                              ),
+                              onEdit: () =>
+                                  _showEditLinkDialog(context, ref, item),
+                              onDelete: () =>
+                                  _deleteLinkItem(context, ref, item),
                             ),
                     ),
                   );
@@ -368,7 +349,7 @@ class IdeaLinksModuleCard extends ConsumerWidget {
 }
 
 class _MobileLinkItem extends StatelessWidget {
-  final IdeaLinkItem item;
+  final IdeaLinkItemModel item;
   final VoidCallback onOpen;
   final VoidCallback onEdit;
   final VoidCallback onDelete;
@@ -433,7 +414,7 @@ class _MobileLinkItem extends StatelessWidget {
 }
 
 class _DesktopLinkItem extends StatefulWidget {
-  final IdeaLinkItem item;
+  final IdeaLinkItemModel item;
   final VoidCallback onOpen;
   final VoidCallback onEdit;
   final VoidCallback onDelete;

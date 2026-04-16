@@ -1,6 +1,6 @@
 import 'package:drift/drift.dart';
-import '../../enums/idea_module_type.dart';
 
+import '../../../domain/enums/idea_module_type.dart';
 import 'ideas.dart';
 
 class IdeaModules extends Table {

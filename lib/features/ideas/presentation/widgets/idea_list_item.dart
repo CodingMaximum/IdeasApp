@@ -1,13 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
+import 'package:ideas_app/domain/models/idea_model.dart';
 import '../../../../core/utils/platform.dart';
 import '../../../../data/db/app_database.dart';
 import '../../logic/providers.dart';
 import 'package:go_router/go_router.dart';
 
 class IdeaListItem extends ConsumerWidget {
-  final Idea idea;
+  final IdeaModel idea;
   final bool isArchivedView;
 
   const IdeaListItem({
@@ -63,7 +64,7 @@ Future<bool> _showDeleteDialog(BuildContext context) async {
 Future<void> _deleteIdeaWithUndo(
   BuildContext context,
   WidgetRef ref,
-  Idea idea,
+  IdeaModel idea,
 ) async {
   final confirmed = await _showDeleteDialog(context);
   if (!confirmed) return;
@@ -98,7 +99,7 @@ Future<void> _deleteIdeaWithUndo(
 Future<void> _archiveIdeaWithUndo(
   BuildContext context,
   WidgetRef ref,
-  Idea idea,
+  IdeaModel idea,
 ) async {
   final repo = ref.read(ideaRepositoryProvider);
   final messenger = ScaffoldMessenger.of(context);
@@ -134,7 +135,7 @@ Future<void> _archiveIdeaWithUndo(
 Future<void> _unarchiveIdea(
   BuildContext context,
   WidgetRef ref,
-  Idea idea,
+  IdeaModel idea,
 ) async {
   final repo = ref.read(ideaRepositoryProvider);
   final messenger = ScaffoldMessenger.of(context);
@@ -152,7 +153,7 @@ Future<void> _unarchiveIdea(
 }
 
 class _MobileItem extends ConsumerWidget {
-  final Idea idea;
+  final IdeaModel idea;
   final bool isArchivedView;
 
   const _MobileItem({
@@ -243,7 +244,7 @@ class _MobileItem extends ConsumerWidget {
 
 
 class _DesktopItem extends ConsumerStatefulWidget {
-  final Idea idea;
+  final IdeaModel idea;
   final bool isArchivedView;
 
   const _DesktopItem({

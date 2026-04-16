@@ -7,7 +7,7 @@ import 'tables/idea_statuses.dart';
 import 'tables/idea_modules.dart';
 import 'tables/idea_link_items.dart';
 import 'tables/idea_checklist_items.dart';
-import 'package:ideas_app/data/enums/idea_module_type.dart';
+import 'package:ideas_app/domain/enums/idea_module_type.dart';
 part 'app_database.g.dart';
 
 @DriftDatabase(

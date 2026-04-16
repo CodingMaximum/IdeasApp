@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:ideas_app/data/db/app_database.dart';
-import 'package:ideas_app/data/enums/idea_module_type.dart';
+import 'package:ideas_app/domain/enums/idea_module_type.dart';
+import 'package:ideas_app/domain/models/idea_model.dart';
+import 'package:ideas_app/domain/models/idea_module_model.dart';
 import 'package:ideas_app/features/ideas/logic/providers.dart';
 import 'package:ideas_app/features/ideas/presentation/widgets/category_selection.dart';
 import 'package:ideas_app/features/ideas/presentation/widgets/idea_checklist_module_card.dart';
@@ -16,7 +17,7 @@ class IdeaDetailPage extends ConsumerWidget {
   Future<void> _confirmAndDelete(
     BuildContext context,
     WidgetRef ref,
-    Idea idea,
+    IdeaModel idea,
   ) async {
     final confirmed = await showDialog<bool>(
       context: context,
@@ -198,7 +199,7 @@ class IdeaDetailPage extends ConsumerWidget {
 
 class _ModulesSection extends ConsumerWidget {
   final String ideaId;
-  final AsyncValue<List<IdeaModule>> modulesAsync;
+  final AsyncValue<List<IdeaModuleModel>> modulesAsync;
   final VoidCallback onAddModule;
 
   const _ModulesSection({
@@ -287,7 +288,7 @@ class _ModulesSection extends ConsumerWidget {
 }
 
 class _ModuleRenderer extends ConsumerWidget {
-  final IdeaModule module;
+  final IdeaModuleModel module;
 
   const _ModuleRenderer({required this.module});
 
@@ -306,7 +307,7 @@ class _TitleSection {
   static Future<void> showRenameDialog(
     BuildContext context,
     WidgetRef ref,
-    Idea idea,
+    IdeaModel    idea,
   ) async {
     final controller = TextEditingController(text: idea.title);
 
@@ -352,7 +353,7 @@ class _TitleSection {
 }
 
 class _DescriptionSection extends ConsumerStatefulWidget {
-  final Idea idea;
+  final IdeaModel idea;
 
   const _DescriptionSection({required this.idea});
 

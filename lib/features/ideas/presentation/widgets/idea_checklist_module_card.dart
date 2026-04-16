@@ -2,13 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:ideas_app/core/utils/platform.dart';
 import 'package:ideas_app/data/db/app_database.dart';
+import 'package:ideas_app/domain/models/idea_checklist_item_model.dart';
+import 'package:ideas_app/domain/models/idea_module_model.dart';
 import 'package:ideas_app/features/ideas/logic/providers.dart';
 import 'package:ideas_app/features/ideas/presentation/widgets/module_card_header.dart';
 import 'package:ideas_app/features/ideas/presentation/widgets/module_card_shell.dart';
 import 'package:ideas_app/features/ideas/presentation/widgets/module_dialogs.dart';
 
 class IdeaChecklistModuleCard extends ConsumerWidget {
-  final IdeaModule module;
+  final IdeaModuleModel module;
 
   const IdeaChecklistModuleCard({super.key, required this.module});
 
@@ -126,7 +128,7 @@ class IdeaChecklistModuleCard extends ConsumerWidget {
   Future<void> _showEditChecklistItemDialog(
     BuildContext context,
     WidgetRef ref,
-    IdeaChecklistItem item,
+    IdeaChecklistItemModel item,
   ) async {
     final controller = TextEditingController(text: item.content);
 
@@ -177,7 +179,7 @@ class IdeaChecklistModuleCard extends ConsumerWidget {
   Future<void> _toggleChecklistItem(
     BuildContext context,
     WidgetRef ref,
-    IdeaChecklistItem item,
+    IdeaChecklistItemModel item,
     bool value,
   ) async {
     await ref
@@ -195,7 +197,7 @@ class IdeaChecklistModuleCard extends ConsumerWidget {
   Future<void> _deleteChecklistItem(
     BuildContext context,
     WidgetRef ref,
-    IdeaChecklistItem item,
+    IdeaChecklistItemModel item,
   ) async {
     await ref.read(ideaRepositoryProvider).deleteChecklistItem(item.id);
 
@@ -324,7 +326,7 @@ class IdeaChecklistModuleCard extends ConsumerWidget {
 }
 
 class _MobileChecklistItem extends StatelessWidget {
-  final IdeaChecklistItem item;
+  final IdeaChecklistItemModel item;
   final VoidCallback onEdit;
   final VoidCallback onDelete;
   final ValueChanged<bool> onToggle;
@@ -385,7 +387,7 @@ class _MobileChecklistItem extends StatelessWidget {
 }
 
 class _DesktopChecklistItem extends StatefulWidget {
-  final IdeaChecklistItem item;
+  final IdeaChecklistItemModel item;
   final VoidCallback onEdit;
   final VoidCallback onDelete;
   final ValueChanged<bool> onToggle;
