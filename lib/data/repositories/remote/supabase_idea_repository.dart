@@ -21,30 +21,34 @@ class SupabaseIdeaRepository implements IIdeaRepository {
   // ─── Ideas ───────────────────────────────────────────────
 
   @override
-  Stream<List<IdeaModel>> watchIdeas() {
-    return _client
-        .from('ideas')
-        .stream(primaryKey: ['id'])
-        .eq('created_by', userId)
-        .order('created_at', ascending: false)
-        .map((rows) => rows
-            .where((r) => r['deleted_at'] == null && r['archived_at'] == null)
-            .map(_rowToIdea)
-            .toList());
-  }
+Stream<List<IdeaModel>> watchIdeas() {
+  return _client
+      .from('ideas')
+      .stream(primaryKey: ['id'])
+      .order('created_at', ascending: false)
+      .map((rows) => rows
+          .where((r) =>
+              r['created_by'] == userId &&      // ← client-seitig filtern
+              r['deleted_at'] == null &&
+              r['archived_at'] == null)
+          .map(_rowToIdea)
+          .toList());
+}
 
-  @override
-  Stream<List<IdeaModel>> watchArchivedIdeas() {
-    return _client
-        .from('ideas')
-        .stream(primaryKey: ['id'])
-        .eq('created_by', userId)
-        .order('archived_at', ascending: false)
-        .map((rows) => rows
-            .where((r) => r['archived_at'] != null && r['deleted_at'] == null)
-            .map(_rowToIdea)
-            .toList());
-  }
+@override
+Stream<List<IdeaModel>> watchArchivedIdeas() {
+  return _client
+      .from('ideas')
+      .stream(primaryKey: ['id'])
+      .order('archived_at', ascending: false)
+      .map((rows) => rows
+          .where((r) =>
+              r['created_by'] == userId &&      // ← client-seitig filtern
+              r['archived_at'] != null &&
+              r['deleted_at'] == null)
+          .map(_rowToIdea)
+          .toList());
+}
 
   @override
   Stream<IdeaModel?> watchIdeaById(String id) {

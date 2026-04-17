@@ -23,11 +23,12 @@ final userIdProvider = Provider<String>((ref) => throw UnimplementedError());
 final databaseProvider = Provider<dynamic>((ref) {
   if (usesRemoteRepository) return null;
   final db = createDatabase();
-  ref.onDispose(() => db.close());
+  ref.keepAlive();                    // ← niemals disposen
+  ref.onDispose(() => db.close());    // trotzdem cleanup wenn App beendet
   return db;
 });
-
 final ideaRepositoryProvider = Provider<IIdeaRepository>((ref) {
+  ref.keepAlive();                    // ← Repository-Instanz stabil halten
   final userId = ref.watch(userIdProvider);
   if (usesRemoteRepository) {
     return SupabaseIdeaRepository(Supabase.instance.client, userId);
